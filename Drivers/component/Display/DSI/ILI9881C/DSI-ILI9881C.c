@@ -1,0 +1,1384 @@
+#include "DSI-ILI9881C.h"
+
+static const DSIPacketStruct ILI9881CConfigs[] = {
+
+#if CONFIG_DISPLAY_ILI9881C_PRESET == DISPLAY_ILI9881C_PRESET_KD050HDFIA020
+    //Page 3
+    MakeDSIPacket(0xFF, 0x98, 0x81, 0x03),
+
+    //GIP 1
+    MakeDSIPacket(0x01, 0x00),
+    MakeDSIPacket(0x02, 0x00),
+    MakeDSIPacket(0x03, 0x72),
+    MakeDSIPacket(0x04, 0x00),
+    MakeDSIPacket(0x05, 0x00),
+    MakeDSIPacket(0x06, 0x09),
+    MakeDSIPacket(0x07, 0x00),
+    MakeDSIPacket(0x08, 0x00),
+    MakeDSIPacket(0x09, 0x01),
+    MakeDSIPacket(0x0a, 0x00),
+    MakeDSIPacket(0x0b, 0x00),
+    MakeDSIPacket(0x0c, 0x01),
+    MakeDSIPacket(0x0d, 0x00),
+    MakeDSIPacket(0x0e, 0x00),
+    MakeDSIPacket(0x0f, 0x00),
+    MakeDSIPacket(0x10, 0x00),
+    MakeDSIPacket(0x11, 0x00),
+    MakeDSIPacket(0x12, 0x00),
+    MakeDSIPacket(0x13, 0x00),
+    MakeDSIPacket(0x14, 0x00),
+    MakeDSIPacket(0x15, 0x00),
+    MakeDSIPacket(0x16, 0x00),
+    MakeDSIPacket(0x17, 0x00),
+    MakeDSIPacket(0x18, 0x00),
+    MakeDSIPacket(0x19, 0x00),
+    MakeDSIPacket(0x1a, 0x00),
+    MakeDSIPacket(0x1b, 0x00),
+    MakeDSIPacket(0x1c, 0x00),
+    MakeDSIPacket(0x1d, 0x00),
+    MakeDSIPacket(0x1e, 0x40),
+    MakeDSIPacket(0x1f, 0x80),
+    MakeDSIPacket(0x20, 0x05),
+    MakeDSIPacket(0x21, 0x02),
+    MakeDSIPacket(0x22, 0x00),
+    MakeDSIPacket(0x23, 0x00),
+    MakeDSIPacket(0x24, 0x00),
+    MakeDSIPacket(0x25, 0x00),
+    MakeDSIPacket(0x26, 0x00),
+    MakeDSIPacket(0x27, 0x00),
+    MakeDSIPacket(0x28, 0x33),
+    MakeDSIPacket(0x29, 0x02),
+    MakeDSIPacket(0x2a, 0x00),
+    MakeDSIPacket(0x2b, 0x00),
+    MakeDSIPacket(0x2c, 0x00),
+    MakeDSIPacket(0x2d, 0x00),
+    MakeDSIPacket(0x2e, 0x00),
+    MakeDSIPacket(0x2f, 0x00),
+    MakeDSIPacket(0x30, 0x00),
+    MakeDSIPacket(0x31, 0x00),
+    MakeDSIPacket(0x32, 0x00),
+    MakeDSIPacket(0x32, 0x00),
+    MakeDSIPacket(0x33, 0x00),
+    MakeDSIPacket(0x34, 0x04),
+    MakeDSIPacket(0x35, 0x00),
+    MakeDSIPacket(0x36, 0x00),
+    MakeDSIPacket(0x37, 0x00),
+    MakeDSIPacket(0x38, 0x3C),
+    MakeDSIPacket(0x39, 0x00),
+    MakeDSIPacket(0x3a, 0x40),
+    MakeDSIPacket(0x3b, 0x40),
+    MakeDSIPacket(0x3c, 0x00),
+    MakeDSIPacket(0x3d, 0x00),
+    MakeDSIPacket(0x3e, 0x00),
+    MakeDSIPacket(0x3f, 0x00),
+    MakeDSIPacket(0x40, 0x00),
+    MakeDSIPacket(0x41, 0x00),
+    MakeDSIPacket(0x42, 0x00),
+    MakeDSIPacket(0x43, 0x00),
+    MakeDSIPacket(0x44, 0x00),
+
+    // GIP2
+    MakeDSIPacket(0x50, 0x01),
+    MakeDSIPacket(0x51, 0x23),
+    MakeDSIPacket(0x52, 0x45),
+    MakeDSIPacket(0x53, 0x67),
+    MakeDSIPacket(0x54, 0x89),
+    MakeDSIPacket(0x55, 0xab),
+    MakeDSIPacket(0x56, 0x01),
+    MakeDSIPacket(0x57, 0x23),
+    MakeDSIPacket(0x58, 0x45),
+    MakeDSIPacket(0x59, 0x67),
+    MakeDSIPacket(0x5a, 0x89),
+    MakeDSIPacket(0x5b, 0xab),
+    MakeDSIPacket(0x5c, 0xcd),
+    MakeDSIPacket(0x5d, 0xef),
+
+    // GIP3
+    MakeDSIPacket(0x5e, 0x11),
+    MakeDSIPacket(0x5f, 0x01),
+    MakeDSIPacket(0x60, 0x00),
+    MakeDSIPacket(0x61, 0x15),
+    MakeDSIPacket(0x62, 0x14),
+    MakeDSIPacket(0x63, 0x0E),
+    MakeDSIPacket(0x64, 0x0F),
+    MakeDSIPacket(0x65, 0x0C),
+    MakeDSIPacket(0x66, 0x0D),
+    MakeDSIPacket(0x67, 0x06),
+    MakeDSIPacket(0x68, 0x02),
+    MakeDSIPacket(0x69, 0x07),
+    MakeDSIPacket(0x6a, 0x02),
+    MakeDSIPacket(0x6b, 0x02),
+    MakeDSIPacket(0x6c, 0x02),
+    MakeDSIPacket(0x6d, 0x02),
+    MakeDSIPacket(0x6e, 0x02),
+    MakeDSIPacket(0x6f, 0x02),
+    MakeDSIPacket(0x70, 0x02),
+    MakeDSIPacket(0x71, 0x02),
+    MakeDSIPacket(0x72, 0x02),
+    MakeDSIPacket(0x73, 0x02),
+    MakeDSIPacket(0x74, 0x02),
+    MakeDSIPacket(0x75, 0x01),
+    MakeDSIPacket(0x76, 0x00),
+    MakeDSIPacket(0x77, 0x14),
+    MakeDSIPacket(0x78, 0x15),
+    MakeDSIPacket(0x79, 0x0E),
+    MakeDSIPacket(0x7a, 0x0F),
+    MakeDSIPacket(0x7b, 0x0C),
+    MakeDSIPacket(0x7c, 0x0D),
+    MakeDSIPacket(0x7d, 0x06),
+    MakeDSIPacket(0x7e, 0x02),
+    MakeDSIPacket(0x7f, 0x07),
+    MakeDSIPacket(0x80, 0x02),
+    MakeDSIPacket(0x81, 0x02),
+    MakeDSIPacket(0x83, 0x02),
+    MakeDSIPacket(0x84, 0x02),
+    MakeDSIPacket(0x85, 0x02),
+    MakeDSIPacket(0x86, 0x02),
+    MakeDSIPacket(0x87, 0x02),
+    MakeDSIPacket(0x88, 0x02),
+    MakeDSIPacket(0x89, 0x02),
+    MakeDSIPacket(0x8A, 0x02),
+
+    // Page 4
+    MakeDSIPacket(0xFF, 0x98, 0x81, 0x04),
+
+    MakeDSIPacket(0xB7, 0x03), // DSI 2 Lanes
+
+    // VCORE SET
+    MakeDSIPacket(0x6C, 0x15), //SET 1.5V
+    // POWER SET2
+    MakeDSIPacket(0x6E, 0x2A), // POWER  MODE 3  vgh15v
+    // POWER SET3
+    MakeDSIPacket(0x6F, 0x33),
+    // Power saving
+    MakeDSIPacket(0x3A, 0x94),
+    // POWER SET 4
+    MakeDSIPacket(0x8D, 0x15), //vgl-10.23v 14
+    // ESD
+    MakeDSIPacket(0x87, 0xBA),
+    MakeDSIPacket(0x26, 0x76),
+    MakeDSIPacket(0xB2, 0xD1),
+    MakeDSIPacket(0xB5, 0x06),
+
+    // Page 1
+    MakeDSIPacket(0xFF, 0x98, 0x81, 0x01),
+    //GS SS
+    MakeDSIPacket(0x22, 0x0A), //09-180,0A-0
+    MakeDSIPacket(0x25, 0),
+    MakeDSIPacket(0x26, 0),
+    MakeDSIPacket(0x2E, (uint8_t)((ILI9881C_VACT - 480) >> 2)),
+    //Display inversion control
+    MakeDSIPacket(0x31, 0x00), //oo-column inversion;01-1dot,02-2dot
+    //vcom1
+    MakeDSIPacket(0x53, 0xA5),
+    //vcom2
+    MakeDSIPacket(0x55, 0xA2),
+    //VREG1OUT
+    MakeDSIPacket(0x50, 0xB7), //positive Gamma
+    //VREG2OUT
+    MakeDSIPacket(0x51, 0xB7), //negative Gamma
+    //source timinng
+    MakeDSIPacket(0x60, 0x22),
+    //source timinng
+    MakeDSIPacket(0x61, 0x00),
+    //source timinng
+    MakeDSIPacket(0x62, 0x19),
+    //source timinng
+    MakeDSIPacket(0x63, 0x10),
+    //positeiv Gamma correction
+    MakeDSIPacket(0xA0, 0x08),
+    MakeDSIPacket(0xA1, 0x17),
+    MakeDSIPacket(0xA2, 0x1E),
+    MakeDSIPacket(0xA3, 0x0E),
+    MakeDSIPacket(0xA4, 0x13),
+    MakeDSIPacket(0xA5, 0x24),
+    MakeDSIPacket(0xA6, 0x1B),
+    MakeDSIPacket(0xA7, 0x1B),
+    MakeDSIPacket(0xA8, 0x53),
+    MakeDSIPacket(0xA9, 0x1B),
+    MakeDSIPacket(0xAA, 0x28),
+    MakeDSIPacket(0xAB, 0x45),
+    MakeDSIPacket(0xAC, 0x1A),
+    MakeDSIPacket(0xAD, 0x1A),
+    MakeDSIPacket(0xAE, 0x50),
+    MakeDSIPacket(0xAF, 0x21),
+    MakeDSIPacket(0xB0, 0x2C),
+    MakeDSIPacket(0xB1, 0x3B),
+    MakeDSIPacket(0xB2, 0x63),
+    MakeDSIPacket(0xB3, 0x39),
+    // Pad Control
+    MakeDSIPacket(0xB6, 0x0A),
+
+    // Negative Gamme correction
+    MakeDSIPacket(0xC0, 0x08),
+    MakeDSIPacket(0xC1, 0x0C),
+    MakeDSIPacket(0xC2, 0x17),
+    MakeDSIPacket(0xC3, 0x0F),
+    MakeDSIPacket(0xC4, 0x0B),
+    MakeDSIPacket(0xC5, 0x1C),
+    MakeDSIPacket(0xC6, 0x10),
+    MakeDSIPacket(0xC7, 0x16),
+    MakeDSIPacket(0xC8, 0x5B),
+    MakeDSIPacket(0xC9, 0x1A),
+    MakeDSIPacket(0xCA, 0x26),
+    MakeDSIPacket(0xCB, 0x55),
+    MakeDSIPacket(0xCC, 0x1D),
+    MakeDSIPacket(0xCD, 0x1E),
+    MakeDSIPacket(0xCE, 0x52),
+    MakeDSIPacket(0xCF, 0x26),
+    MakeDSIPacket(0xD0, 0x29),
+    MakeDSIPacket(0xD1, 0x45),
+    MakeDSIPacket(0xD2, 0x63),
+    MakeDSIPacket(0xD3, 0x39),
+#elif CONFIG_DISPLAY_ILI9881C_PRESET == DISPLAY_ILI9881C_PRESET_KD080WXFID015
+    //Page 3
+    MakeDSIPacket(0xFF, 0x98, 0x81, 0x03),
+    //GIP_1
+    MakeDSIPacket(0x01, 0x00),
+    MakeDSIPacket(0x02, 0x00),
+    MakeDSIPacket(0x03, 0x57), //57 STV0 Width=8H   //STVA=STV0
+    MakeDSIPacket(0x04, 0xD3), //D3 STV1_2 Width=CLK Width    //STVB=STV1_2
+    MakeDSIPacket(0x05, 0x00), //STVC
+    MakeDSIPacket(0x06, 0x11), //STVA_Rise
+    MakeDSIPacket(0x07, 0x08), //STVB_Rise
+    MakeDSIPacket(0x08, 0x00), //STVC_Rise
+    MakeDSIPacket(0x09, 0x00), //FTI1R(A)
+    MakeDSIPacket(0x0a, 0x3F), //STV宽度跟CLK调整一样宽 //FTI2R(B)
+    MakeDSIPacket(0x0b, 0x00), //FTI3R(C)
+    MakeDSIPacket(0x0c, 0x00), //FTI1F(A)
+    MakeDSIPacket(0x0d, 0x00), //FTI2F(B)
+    MakeDSIPacket(0x0e, 0x00), //FTI2F(C)
+    MakeDSIPacket(0x0f, 0x3F), //00     //3F Duty=42%    //CLW1(ALR)
+    MakeDSIPacket(0x10, 0x3F), //00     //3F Duty=42%    //CLW2(ARR)
+    MakeDSIPacket(0x11, 0x00),
+    MakeDSIPacket(0x12, 0x00),
+    MakeDSIPacket(0x13, 0x00), //CLWX(ATF)
+    MakeDSIPacket(0x14, 0x00),
+    MakeDSIPacket(0x15, 0x00), //GPMRi(ALR)
+    MakeDSIPacket(0x16, 0x00), //GPMRii(ARR)
+    MakeDSIPacket(0x17, 0x00), //GPMFi(ALF)
+    MakeDSIPacket(0x18, 0x00), //GPMFii(AFF)
+    MakeDSIPacket(0x19, 0x00),
+    MakeDSIPacket(0x1a, 0x00),
+    MakeDSIPacket(0x1b, 0x00),
+    MakeDSIPacket(0x1c, 0x00),
+    MakeDSIPacket(0x1d, 0x00),
+    MakeDSIPacket(0x1e, 0x40), //CLKA 40笆は C0も笆は(X8把σCLKB)
+    MakeDSIPacket(0x1f, 0x80), //C0
+    MakeDSIPacket(0x20, 0x06), //CLKA_Rise
+    MakeDSIPacket(0x21, 0x01), //CLKA_Fall
+    MakeDSIPacket(0x22, 0x00), //CLKB_Rise(keep toggle惠砞CLK A)
+    MakeDSIPacket(0x23, 0x00), //CLKB_Fall
+    MakeDSIPacket(0x24, 0x00), //CLK keep toggle(AL) 8X┕オ
+    MakeDSIPacket(0x25, 0x00), //CLK keep toggle(AR) 8X┕オ
+    MakeDSIPacket(0x26, 0x00),
+    MakeDSIPacket(0x27, 0x00),
+    MakeDSIPacket(0x28, 0x33), //CLK Phase
+    MakeDSIPacket(0x29, 0x33), //CLK overlap
+    MakeDSIPacket(0x2a, 0x00),
+    MakeDSIPacket(0x2b, 0x00),
+    MakeDSIPacket(0x2c, 0x00), //GCH R
+    MakeDSIPacket(0x2d, 0x00), //GCL R
+    MakeDSIPacket(0x2e, 0x00), //GCH F
+    MakeDSIPacket(0x2f, 0x00), //GCL F
+    MakeDSIPacket(0x30, 0x00),
+    MakeDSIPacket(0x31, 0x00),
+    MakeDSIPacket(0x32, 0x00), //GCH/L ext2/1︽  5E 01:31   5E 00:42
+    MakeDSIPacket(0x33, 0x00),
+    MakeDSIPacket(0x34, 0x00), //VDD1&2 non-overlap 04:2.62us
+    MakeDSIPacket(0x35, 0x00),
+    MakeDSIPacket(0x36, 0x00),
+    MakeDSIPacket(0x37, 0x00), //GCH/L
+    MakeDSIPacket(0x38, 0x78), //VDD1&2 toggle 2sec
+    MakeDSIPacket(0x39, 0x00),
+    MakeDSIPacket(0x3a, 0x00),
+    MakeDSIPacket(0x3b, 0x00),
+    MakeDSIPacket(0x3c, 0x00),
+    MakeDSIPacket(0x3d, 0x00),
+    MakeDSIPacket(0x3e, 0x00),
+    MakeDSIPacket(0x3f, 0x00),
+    MakeDSIPacket(0x40, 0x00),
+    MakeDSIPacket(0x41, 0x00),
+    MakeDSIPacket(0x42, 0x00),
+    MakeDSIPacket(0x43, 0x00),
+    MakeDSIPacket(0x44, 0x00),
+
+    //GIP_2
+    MakeDSIPacket(0x50, 0x00),
+    MakeDSIPacket(0x51, 0x23),
+    MakeDSIPacket(0x52, 0x45),
+    MakeDSIPacket(0x53, 0x67),
+    MakeDSIPacket(0x54, 0x89),
+    MakeDSIPacket(0x55, 0xab),
+    MakeDSIPacket(0x56, 0x01),
+    MakeDSIPacket(0x57, 0x23),
+    MakeDSIPacket(0x58, 0x45),
+    MakeDSIPacket(0x59, 0x67),
+    MakeDSIPacket(0x5a, 0x89),
+    MakeDSIPacket(0x5b, 0xab),
+    MakeDSIPacket(0x5c, 0xcd),
+    MakeDSIPacket(0x5d, 0xef),
+
+    //GIP_3
+    MakeDSIPacket(0x5e, 0x00),
+    MakeDSIPacket(0x5f, 0x0D), //FW_CGOUT_L[1]    CLK8
+    MakeDSIPacket(0x60, 0x0D), //FW_CGOUT_L[2]    CLK8
+    MakeDSIPacket(0x61, 0x0C), //FW_CGOUT_L[3]    CLK6
+    MakeDSIPacket(0x62, 0x0C), //FW_CGOUT_L[4]    CLK6
+    MakeDSIPacket(0x63, 0x0F), //FW_CGOUT_L[5]    CLK4
+    MakeDSIPacket(0x64, 0x0F), //FW_CGOUT_L[6]    CLK4
+    MakeDSIPacket(0x65, 0x0E), //FW_CGOUT_L[7]    CLK2
+    MakeDSIPacket(0x66, 0x0E), //FW_CGOUT_L[8]    CLK2
+    MakeDSIPacket(0x67, 0x08), //FW_CGOUT_L[9]    STV2
+    MakeDSIPacket(0x68, 0x02), //FW_CGOUT_L[10]
+    MakeDSIPacket(0x69, 0x02), //FW_CGOUT_L[11]
+    MakeDSIPacket(0x6a, 0x02), //FW_CGOUT_L[12]
+    MakeDSIPacket(0x6b, 0x02), //FW_CGOUT_L[13]
+    MakeDSIPacket(0x6c, 0x02), //FW_CGOUT_L[14]
+    MakeDSIPacket(0x6d, 0x02), //FW_CGOUT_L[15]
+    MakeDSIPacket(0x6e, 0x02), //FW_CGOUT_L[16]   VGL
+    MakeDSIPacket(0x6f, 0x02), //FW_CGOUT_L[17]   VGL
+    MakeDSIPacket(0x70, 0x14), //FW_CGOUT_L[18]   VDDO
+    MakeDSIPacket(0x71, 0x15), //FW_CGOUT_L[19]   VDDE
+    MakeDSIPacket(0x72, 0x06), //FW_CGOUT_L[20]   STV0
+    MakeDSIPacket(0x73, 0x02), //FW_CGOUT_L[21]
+    MakeDSIPacket(0x74, 0x02), //FW_CGOUT_L[22]
+
+    MakeDSIPacket(0x75, 0x0D), //BW_CGOUT_L[1]
+    MakeDSIPacket(0x76, 0x0D), //BW_CGOUT_L[2]
+    MakeDSIPacket(0x77, 0x0C), //BW_CGOUT_L[3]
+    MakeDSIPacket(0x78, 0x0C), //BW_CGOUT_L[4]
+    MakeDSIPacket(0x79, 0x0F), //BW_CGOUT_L[5]
+    MakeDSIPacket(0x7a, 0x0F), //BW_CGOUT_L[6]
+    MakeDSIPacket(0x7b, 0x0E), //BW_CGOUT_L[7]
+    MakeDSIPacket(0x7c, 0x0E), //BW_CGOUT_L[8]
+    MakeDSIPacket(0x7d, 0x08), //BW_CGOUT_L[9]
+    MakeDSIPacket(0x7e, 0x02), //BW_CGOUT_L[10]
+    MakeDSIPacket(0x7f, 0x02), //BW_CGOUT_L[11]
+    MakeDSIPacket(0x80, 0x02), //BW_CGOUT_L[12]
+    MakeDSIPacket(0x81, 0x02), //BW_CGOUT_L[13]
+    MakeDSIPacket(0x82, 0x02), //BW_CGOUT_L[14]
+    MakeDSIPacket(0x83, 0x02), //BW_CGOUT_L[15]
+    MakeDSIPacket(0x84, 0x02), //BW_CGOUT_L[16]
+    MakeDSIPacket(0x85, 0x02), //BW_CGOUT_L[17]
+    MakeDSIPacket(0x86, 0x14), //BW_CGOUT_L[18]
+    MakeDSIPacket(0x87, 0x15), //BW_CGOUT_L[19]
+    MakeDSIPacket(0x88, 0x06), //BW_CGOUT_L[20]
+    MakeDSIPacket(0x89, 0x02), //BW_CGOUT_L[21]
+    MakeDSIPacket(0x8A, 0x02), //BW_CGOUT_L[22]
+
+    // CMD_Page 4
+    MakeDSIPacket(0xFF, 0x98, 0x81, 0x04),
+
+    MakeDSIPacket(0x6E, 0x3B), //VGH 18V
+    MakeDSIPacket(0x6F, 0x57), //reg vcl + pumping ratio VGH=4x VGL=-3x
+    MakeDSIPacket(0x3A, 0x24), //POWER SAVING
+    MakeDSIPacket(0x8D, 0x1F), //VGL -12V  1F =-12V
+    MakeDSIPacket(0x87, 0xBA), //ESD  由BA改成0A
+    MakeDSIPacket(0xB2, 0xD1),
+    MakeDSIPacket(0x88, 0x0B),
+    MakeDSIPacket(0x38, 0x01),
+    MakeDSIPacket(0x39, 0x00),
+    MakeDSIPacket(0xB5, 0x07), //gamma bias
+    MakeDSIPacket(0x31, 0x75),
+    MakeDSIPacket(0x3B, 0x98),
+
+    // CMD_Page 1
+    MakeDSIPacket(0xFF, 0x98, 0x81, 0x01),
+
+    MakeDSIPacket(0xB7, 0x03), // DSI 2 Lanes
+
+    MakeDSIPacket(0x22, 0x0A), // BGR, SS
+    MakeDSIPacket(0x25, ILI9881C_VFP),
+    MakeDSIPacket(0x26, ILI9881C_VBP),
+    MakeDSIPacket(0x2E, 0xC8),
+
+    MakeDSIPacket(0x31, 0x09), ///Column inversion
+    MakeDSIPacket(0x35, 0x07), //
+    MakeDSIPacket(0x53, 0x69), //VCOM1
+    MakeDSIPacket(0x55, 0x89), //VCOM2
+    MakeDSIPacket(0x50, 0x86), // 4.3V  //95-> 4.5V //VREG1OUT
+    MakeDSIPacket(0x51, 0x82), //-4.3V  //90->-4.5V //VREG2OUT
+    MakeDSIPacket(0x60, 0x10), //SDT=2.8  由27，改为10
+    MakeDSIPacket(0x62, 0x00), //由20，改为00
+
+    //============Gamma START=============
+    MakeDSIPacket(0xA0, 0x00),
+    MakeDSIPacket(0xA1, 0x12),
+    MakeDSIPacket(0xA2, 0x1F),
+    MakeDSIPacket(0xA3, 0x12),
+    MakeDSIPacket(0xA4, 0x16),
+    MakeDSIPacket(0xA5, 0x29),
+    MakeDSIPacket(0xA6, 0x1E),
+    MakeDSIPacket(0xA7, 0x1F),
+    MakeDSIPacket(0xA8, 0x7E),
+    MakeDSIPacket(0xA9, 0x1B),
+    MakeDSIPacket(0xAA, 0x28),
+    MakeDSIPacket(0xAB, 0x6D),
+    MakeDSIPacket(0xAC, 0x19),
+    MakeDSIPacket(0xAD, 0x18),
+    MakeDSIPacket(0xAE, 0x4C),
+    MakeDSIPacket(0xAF, 0x1E),
+    MakeDSIPacket(0xB0, 0x23),
+    MakeDSIPacket(0xB1, 0x52),
+    MakeDSIPacket(0xB2, 0x6D),
+    MakeDSIPacket(0xB3, 0x3F),
+
+    //Neg Register
+    MakeDSIPacket(0xC0, 0x00),
+    MakeDSIPacket(0xC1, 0x12),
+    MakeDSIPacket(0xC2, 0x20),
+    MakeDSIPacket(0xC3, 0x10),
+    MakeDSIPacket(0xC4, 0x13),
+    MakeDSIPacket(0xC5, 0x27),
+    MakeDSIPacket(0xC6, 0x1B),
+    MakeDSIPacket(0xC7, 0x1D),
+    MakeDSIPacket(0xC8, 0x75),
+    MakeDSIPacket(0xC9, 0x1F),
+    MakeDSIPacket(0xCA, 0x28),
+    MakeDSIPacket(0xCB, 0x68),
+    MakeDSIPacket(0xCC, 0x1A),
+    MakeDSIPacket(0xCD, 0x18),
+    MakeDSIPacket(0xCE, 0x4D),
+    MakeDSIPacket(0xCF, 0x25),
+    MakeDSIPacket(0xD0, 0x2E),
+    MakeDSIPacket(0xD1, 0x53),
+    MakeDSIPacket(0xD2, 0x60),
+    MakeDSIPacket(0xD3, 0x3F),
+#elif CONFIG_DISPLAY_ILI9881C_PRESET == DISPLAY_ILI9881C_PRESET_XHT080BS027A0
+    MakeDSIPacket(0xFF, 0x98, 0x81, 0x03),
+
+    // GIP_1
+    MakeDSIPacket(0x01, 0x00),
+    MakeDSIPacket(0x02, 0x00),
+    MakeDSIPacket(0x03, 0x57), //54    //57 STV0 Width=8H   //STVA=STV0
+    MakeDSIPacket(0x04, 0xD3), //D4    //D3 STV1_2 Width=CLK Width    //STVB=STV1_2
+    MakeDSIPacket(0x05, 0x00), //STVC
+    MakeDSIPacket(0x06, 0x11), //STVA_Rise
+    MakeDSIPacket(0x07, 0x08), //09        //STVB_Rise
+    MakeDSIPacket(0x08, 0x00), //STVC_Rise
+    MakeDSIPacket(0x09, 0x00), //FTI1R(A)
+    MakeDSIPacket(0x0a, 0x3F), //00     //STV宽度跟CLK调整一样宽 //FTI2R(B)
+    MakeDSIPacket(0x0b, 0x00), //FTI3R(C)
+    MakeDSIPacket(0x0c, 0x00), //FTI1F(A)
+    MakeDSIPacket(0x0d, 0x00), //FTI2F(B)
+    MakeDSIPacket(0x0e, 0x00), //FTI2F(C)
+    MakeDSIPacket(0x0f, 0x3F), //00     //3F Duty=42%    //CLW1(ALR)
+    MakeDSIPacket(0x10, 0x3F), //00     //3F Duty=42%    //CLW2(ARR)
+    MakeDSIPacket(0x11, 0x00),
+    MakeDSIPacket(0x12, 0x00),
+    MakeDSIPacket(0x13, 0x00), //CLWX(ATF)
+    MakeDSIPacket(0x14, 0x00),
+    MakeDSIPacket(0x15, 0x00), //GPMRi(ALR)
+    MakeDSIPacket(0x16, 0x00), //GPMRii(ARR)
+    MakeDSIPacket(0x17, 0x00), //GPMFi(ALF)
+    MakeDSIPacket(0x18, 0x00), //GPMFii(AFF)
+    MakeDSIPacket(0x19, 0x00),
+    MakeDSIPacket(0x1a, 0x00),
+    MakeDSIPacket(0x1b, 0x00),
+    MakeDSIPacket(0x1c, 0x00),
+    MakeDSIPacket(0x1d, 0x00),
+    MakeDSIPacket(0x1e, 0x40), //CLKA 40笆は C0も笆は(X8把σCLKB)
+    MakeDSIPacket(0x1f, 0x80), //C0
+    MakeDSIPacket(0x20, 0x06), //CLKA_Rise
+    MakeDSIPacket(0x21, 0x01), //CLKA_Fall
+    MakeDSIPacket(0x22, 0x00), //CLKB_Rise(keep toggle惠砞CLK A)
+    MakeDSIPacket(0x23, 0x00), //CLKB_Fall
+    MakeDSIPacket(0x24, 0x00), //CLK keep toggle(AL) 8X┕オ
+    MakeDSIPacket(0x25, 0x00), //CLK keep toggle(AR) 8X┕オ
+    MakeDSIPacket(0x26, 0x00),
+    MakeDSIPacket(0x27, 0x00),
+    MakeDSIPacket(0x28, 0x33), //CLK Phase
+    MakeDSIPacket(0x29, 0x33), //CLK overlap
+    MakeDSIPacket(0x2a, 0x00),
+    MakeDSIPacket(0x2b, 0x00),
+    MakeDSIPacket(0x2c, 0x00), //GCH R
+    MakeDSIPacket(0x2d, 0x00), //GCL R
+    MakeDSIPacket(0x2e, 0x00), //GCH F
+    MakeDSIPacket(0x2f, 0x00), //GCL F
+    MakeDSIPacket(0x30, 0x00),
+    MakeDSIPacket(0x31, 0x00),
+    MakeDSIPacket(0x32, 0x00), //GCH/L ext2/1︽  5E 01:31   5E 00:42
+    MakeDSIPacket(0x33, 0x00),
+    MakeDSIPacket(0x34, 0x00), //VDD1&2 non-overlap 04:2.62us
+    MakeDSIPacket(0x35, 0x00), //GCH/L 跋丁 00:VS玡 01:VS 10:阁VS 11:frameい
+    MakeDSIPacket(0x36, 0x00),
+    MakeDSIPacket(0x37, 0x00), //GCH/L
+    MakeDSIPacket(0x38, 0x78), //VDD1&2 toggle 2sec
+    MakeDSIPacket(0x39, 0x00),
+    MakeDSIPacket(0x3a, 0x00),
+    MakeDSIPacket(0x3b, 0x00),
+    MakeDSIPacket(0x3c, 0x00),
+    MakeDSIPacket(0x3d, 0x00),
+    MakeDSIPacket(0x3e, 0x00),
+    MakeDSIPacket(0x3f, 0x00),
+    MakeDSIPacket(0x40, 0x00),
+    MakeDSIPacket(0x41, 0x00),
+    MakeDSIPacket(0x42, 0x00),
+    MakeDSIPacket(0x43, 0x00), //GCH/L
+    MakeDSIPacket(0x44, 0x00),
+
+    // GIP_2
+    MakeDSIPacket(0x50, 0x00),
+    MakeDSIPacket(0x51, 0x23),
+    MakeDSIPacket(0x52, 0x45),
+    MakeDSIPacket(0x53, 0x67),
+    MakeDSIPacket(0x54, 0x89),
+    MakeDSIPacket(0x55, 0xab),
+    MakeDSIPacket(0x56, 0x01),
+    MakeDSIPacket(0x57, 0x23),
+    MakeDSIPacket(0x58, 0x45),
+    MakeDSIPacket(0x59, 0x67),
+    MakeDSIPacket(0x5a, 0x89),
+    MakeDSIPacket(0x5b, 0xab),
+    MakeDSIPacket(0x5c, 0xcd),
+    MakeDSIPacket(0x5d, 0xef),
+
+    // GIP_3
+    MakeDSIPacket(0x5e, 0x00),
+    MakeDSIPacket(0x5f, 0x0D), //FW_CGOUT_L[1]    CLK8
+    MakeDSIPacket(0x60, 0x0D), //FW_CGOUT_L[2]    CLK8
+    MakeDSIPacket(0x61, 0x0C), //FW_CGOUT_L[3]    CLK6
+    MakeDSIPacket(0x62, 0x0C), //FW_CGOUT_L[4]    CLK6
+    MakeDSIPacket(0x63, 0x0F), //FW_CGOUT_L[5]    CLK4
+    MakeDSIPacket(0x64, 0x0F), //FW_CGOUT_L[6]    CLK4
+    MakeDSIPacket(0x65, 0x0E), //FW_CGOUT_L[7]    CLK2
+    MakeDSIPacket(0x66, 0x0E), //FW_CGOUT_L[8]    CLK2
+    MakeDSIPacket(0x67, 0x08), //FW_CGOUT_L[9]    STV2
+    MakeDSIPacket(0x68, 0x02), //FW_CGOUT_L[10]
+    MakeDSIPacket(0x69, 0x02), //FW_CGOUT_L[11]
+    MakeDSIPacket(0x6a, 0x02), //FW_CGOUT_L[12]
+    MakeDSIPacket(0x6b, 0x02), //FW_CGOUT_L[13]
+    MakeDSIPacket(0x6c, 0x02), //FW_CGOUT_L[14]
+    MakeDSIPacket(0x6d, 0x02), //FW_CGOUT_L[15]
+    MakeDSIPacket(0x6e, 0x02), //FW_CGOUT_L[16]   VGL
+    MakeDSIPacket(0x6f, 0x02), //FW_CGOUT_L[17]   VGL
+    MakeDSIPacket(0x70, 0x14), //FW_CGOUT_L[18]   VDDO
+    MakeDSIPacket(0x71, 0x15), //FW_CGOUT_L[19]   VDDE
+    MakeDSIPacket(0x72, 0x06), //FW_CGOUT_L[20]   STV0
+    MakeDSIPacket(0x73, 0x02), //FW_CGOUT_L[21]
+    MakeDSIPacket(0x74, 0x02), //FW_CGOUT_L[22]
+
+    MakeDSIPacket(0x75, 0x0D), //BW_CGOUT_L[1]
+    MakeDSIPacket(0x76, 0x0D), //BW_CGOUT_L[2]
+    MakeDSIPacket(0x77, 0x0C), //BW_CGOUT_L[3]
+    MakeDSIPacket(0x78, 0x0C), //BW_CGOUT_L[4]
+    MakeDSIPacket(0x79, 0x0F), //BW_CGOUT_L[5]
+    MakeDSIPacket(0x7a, 0x0F), //BW_CGOUT_L[6]
+    MakeDSIPacket(0x7b, 0x0E), //BW_CGOUT_L[7]
+    MakeDSIPacket(0x7c, 0x0E), //BW_CGOUT_L[8]
+    MakeDSIPacket(0x7d, 0x08), //BW_CGOUT_L[9]
+    MakeDSIPacket(0x7e, 0x02), //BW_CGOUT_L[10]
+    MakeDSIPacket(0x7f, 0x02), //BW_CGOUT_L[11]
+    MakeDSIPacket(0x80, 0x02), //BW_CGOUT_L[12]
+    MakeDSIPacket(0x81, 0x02), //BW_CGOUT_L[13]
+    MakeDSIPacket(0x82, 0x02), //BW_CGOUT_L[14]
+    MakeDSIPacket(0x83, 0x02), //BW_CGOUT_L[15]
+    MakeDSIPacket(0x84, 0x02), //BW_CGOUT_L[16]
+    MakeDSIPacket(0x85, 0x02), //BW_CGOUT_L[17]
+    MakeDSIPacket(0x86, 0x14), //BW_CGOUT_L[18]
+    MakeDSIPacket(0x87, 0x15), //BW_CGOUT_L[19]
+    MakeDSIPacket(0x88, 0x06), //BW_CGOUT_L[20]
+    MakeDSIPacket(0x89, 0x02), //BW_CGOUT_L[21]
+    MakeDSIPacket(0x8A, 0x02), //BW_CGOUT_L[22]
+
+    // CMD_Page 4
+    MakeDSIPacket(0xFF, 0x98, 0x81, 0x04),
+
+    MakeDSIPacket(0x6E, 0x3B), //VGH 18V
+    MakeDSIPacket(0x6F, 0x57), //reg vcl + pumping ratio VGH=4x VGL=-3x
+    MakeDSIPacket(0x70, 0x00), //VGH CLKDIV
+    MakeDSIPacket(0x71, 0x00), //VGL CLKDIV
+    MakeDSIPacket(0x3A, 0x24), //POWER SAVING
+    MakeDSIPacket(0x8D, 0x1F), //VGL -12V  1F =-12V
+    MakeDSIPacket(0x87, 0xBA), //ESD  由BA改成0A
+    MakeDSIPacket(0xB2, 0xD1),
+    MakeDSIPacket(0x88, 0x0B),
+    MakeDSIPacket(0x38, 0x01),
+    MakeDSIPacket(0x39, 0x00),
+    MakeDSIPacket(0xB5, 0x07), //gamma bias
+    MakeDSIPacket(0x31, 0x75),
+    MakeDSIPacket(0x3B, 0x98),
+
+    // CMD_Page 1
+    MakeDSIPacket(0xFF, 0x98, 0x81, 0x01),
+
+    MakeDSIPacket(0xB7, 0x03), // DSI 2 Lanes
+
+    MakeDSIPacket(0x22, 0x0A), //BGR, SS
+    MakeDSIPacket(0x31, 0x09), ///Column inversion
+    MakeDSIPacket(0x35, 0x07), //
+    MakeDSIPacket(0x53, 0x87), //7E 82 VCOM1
+    MakeDSIPacket(0x55, 0x84), //VCOM2
+    MakeDSIPacket(0x50, 0x86), // 4.3V  //95-> 4.5V //VREG1OUT
+    MakeDSIPacket(0x51, 0x82), //-4.3V  //90->-4.5V //VREG2OUT
+    MakeDSIPacket(0x60, 0x10), //SDT=2.8  由27，改为10
+    MakeDSIPacket(0x62, 0x00), //由20，改为00
+
+    //============Gamma START=============
+    MakeDSIPacket(0xA0, 0x00),
+    MakeDSIPacket(0xA1, 0x12),
+    MakeDSIPacket(0xA2, 0x1F),
+    MakeDSIPacket(0xA3, 0x12),
+    MakeDSIPacket(0xA4, 0x16),
+    MakeDSIPacket(0xA5, 0x29),
+    MakeDSIPacket(0xA6, 0x1E),
+    MakeDSIPacket(0xA7, 0x1F),
+    MakeDSIPacket(0xA8, 0x7E),
+    MakeDSIPacket(0xA9, 0x1B),
+    MakeDSIPacket(0xAA, 0x28),
+    MakeDSIPacket(0xAB, 0x6D),
+    MakeDSIPacket(0xAC, 0x19),
+    MakeDSIPacket(0xAD, 0x18),
+    MakeDSIPacket(0xAE, 0x4C),
+    MakeDSIPacket(0xAF, 0x1E),
+    MakeDSIPacket(0xB0, 0x23),
+    MakeDSIPacket(0xB1, 0x52),
+    MakeDSIPacket(0xB2, 0x6D),
+    MakeDSIPacket(0xB3, 0x3F),
+
+    // Neg Register
+    MakeDSIPacket(0xC0, 0x00),
+    MakeDSIPacket(0xC1, 0x12),
+    MakeDSIPacket(0xC2, 0x20),
+    MakeDSIPacket(0xC3, 0x10),
+    MakeDSIPacket(0xC4, 0x13),
+    MakeDSIPacket(0xC5, 0x27),
+    MakeDSIPacket(0xC6, 0x1B),
+    MakeDSIPacket(0xC7, 0x1D),
+    MakeDSIPacket(0xC8, 0x75),
+    MakeDSIPacket(0xC9, 0x1F),
+    MakeDSIPacket(0xCA, 0x28),
+    MakeDSIPacket(0xCB, 0x68),
+    MakeDSIPacket(0xCC, 0x1A),
+    MakeDSIPacket(0xCD, 0x18),
+    MakeDSIPacket(0xCE, 0x4D),
+    MakeDSIPacket(0xCF, 0x25),
+    MakeDSIPacket(0xD0, 0x2E),
+    MakeDSIPacket(0xD1, 0x53),
+    MakeDSIPacket(0xD2, 0x60),
+    MakeDSIPacket(0xD3, 0x3F),
+#elif CONFIG_DISPLAY_ILI9881C_PRESET == DISPLAY_ILI9881C_PRESET_XHT101CS001A0
+    MakeDSIPacket(0xFF, 0x98, 0x81, 0x03),
+
+    MakeDSIPacket(0x01, 0x00),
+    MakeDSIPacket(0x02, 0x00),
+    MakeDSIPacket(0x03, 0x53),
+    MakeDSIPacket(0x04, 0x53),
+    MakeDSIPacket(0x05, 0x13),
+    MakeDSIPacket(0x06, 0x04),
+    MakeDSIPacket(0x07, 0x02),
+    MakeDSIPacket(0x08, 0x02),
+    MakeDSIPacket(0x09, 0x00),
+    MakeDSIPacket(0x0a, 0x00),
+    MakeDSIPacket(0x0b, 0x00),
+    MakeDSIPacket(0x0c, 0x00),
+    MakeDSIPacket(0x0d, 0x00),
+    MakeDSIPacket(0x0e, 0x00),
+    MakeDSIPacket(0x0f, 0x00),
+    MakeDSIPacket(0x10, 0x00),
+    MakeDSIPacket(0x11, 0x00),
+    MakeDSIPacket(0x12, 0x00),
+    MakeDSIPacket(0x13, 0x00),
+    MakeDSIPacket(0x14, 0x00),
+    MakeDSIPacket(0x15, 0x00),
+    MakeDSIPacket(0x16, 0x00),
+    MakeDSIPacket(0x17, 0x00),
+    MakeDSIPacket(0x18, 0x00),
+    MakeDSIPacket(0x19, 0x00),
+    MakeDSIPacket(0x1a, 0x00),
+    MakeDSIPacket(0x1b, 0x00),
+    MakeDSIPacket(0x1c, 0x00),
+    MakeDSIPacket(0x1d, 0x00),
+    MakeDSIPacket(0x1e, 0xc0),
+    MakeDSIPacket(0x1f, 0x00),
+    MakeDSIPacket(0x20, 0x02),
+    MakeDSIPacket(0x21, 0x09),
+    MakeDSIPacket(0x22, 0x00),
+    MakeDSIPacket(0x23, 0x00),
+    MakeDSIPacket(0x24, 0x00),
+    MakeDSIPacket(0x25, 0x00),
+    MakeDSIPacket(0x26, 0x00),
+    MakeDSIPacket(0x27, 0x00),
+    MakeDSIPacket(0x28, 0x55),
+    MakeDSIPacket(0x29, 0x03),
+    MakeDSIPacket(0x2a, 0x00),
+    MakeDSIPacket(0x2b, 0x00),
+    MakeDSIPacket(0x2c, 0x00),
+    MakeDSIPacket(0x2d, 0x00),
+    MakeDSIPacket(0x2e, 0x00),
+    MakeDSIPacket(0x2f, 0x00),
+    MakeDSIPacket(0x30, 0x00),
+    MakeDSIPacket(0x31, 0x00),
+    MakeDSIPacket(0x32, 0x00),
+    MakeDSIPacket(0x33, 0x00),
+    MakeDSIPacket(0x34, 0x00),
+    MakeDSIPacket(0x35, 0x00),
+    MakeDSIPacket(0x36, 0x00),
+    MakeDSIPacket(0x37, 0x00),
+    MakeDSIPacket(0x38, 0x3C),
+    MakeDSIPacket(0x39, 0x00),
+    MakeDSIPacket(0x3a, 0x00),
+    MakeDSIPacket(0x3b, 0x00),
+    MakeDSIPacket(0x3c, 0x00),
+    MakeDSIPacket(0x3d, 0x00),
+    MakeDSIPacket(0x3e, 0x00),
+    MakeDSIPacket(0x3f, 0x00),
+    MakeDSIPacket(0x40, 0x00),
+    MakeDSIPacket(0x41, 0x00),
+    MakeDSIPacket(0x42, 0x00),
+    MakeDSIPacket(0x43, 0x00),
+    MakeDSIPacket(0x44, 0x00),
+    MakeDSIPacket(0x45, 0x00),
+
+    MakeDSIPacket(0x50, 0x01),
+    MakeDSIPacket(0x51, 0x23),
+    MakeDSIPacket(0x52, 0x45),
+    MakeDSIPacket(0x53, 0x67),
+    MakeDSIPacket(0x54, 0x89),
+    MakeDSIPacket(0x55, 0xab),
+    MakeDSIPacket(0x56, 0x01),
+    MakeDSIPacket(0x57, 0x23),
+    MakeDSIPacket(0x58, 0x45),
+    MakeDSIPacket(0x59, 0x67),
+    MakeDSIPacket(0x5a, 0x89),
+    MakeDSIPacket(0x5b, 0xab),
+    MakeDSIPacket(0x5c, 0xcd),
+    MakeDSIPacket(0x5d, 0xef),
+
+    MakeDSIPacket(0x5e, 0x01),
+    MakeDSIPacket(0x5f, 0x0A), //FW_CGOUT_L[1] RESE_ODD
+    MakeDSIPacket(0x60, 0x02), //FW_CGOUT_L[2] VSSG_ODD
+    MakeDSIPacket(0x61, 0x02), //FW_CGOUT_L[3] VSSG_ODD
+    MakeDSIPacket(0x62, 0x08), //FW_CGOUT_L[4] STV2_ODD
+    MakeDSIPacket(0x63, 0x15), //FW_CGOUT_L[5] VDD2_ODD
+    MakeDSIPacket(0x64, 0x14), //FW_CGOUT_L[6] VDD1_ODD
+    MakeDSIPacket(0x65, 0x02), //FW_CGOUT_L[7]
+    MakeDSIPacket(0x66, 0x11), //FW_CGOUT_L[8] CK11
+    MakeDSIPacket(0x67, 0x10), //FW_CGOUT_L[9] CK9
+    MakeDSIPacket(0x68, 0x02), //FW_CGOUT_L[10]
+    MakeDSIPacket(0x69, 0x0F), //FW_CGOUT_L[11] CK7
+    MakeDSIPacket(0x6a, 0x0E), //FW_CGOUT_L[12] CK5
+    MakeDSIPacket(0x6b, 0x02), //FW_CGOUT_L[13]
+    MakeDSIPacket(0x6c, 0x0D), //FW_CGOUT_L[14] CK3
+    MakeDSIPacket(0x6d, 0x0C), //FW_CGOUT_L[15] CK1
+    MakeDSIPacket(0x6e, 0x06), //FW_CGOUT_L[16] STV1_ODD
+    MakeDSIPacket(0x6f, 0x02), //FW_CGOUT_L[17]
+    MakeDSIPacket(0x70, 0x02), //FW_CGOUT_L[18]
+    MakeDSIPacket(0x71, 0x02), //FW_CGOUT_L[19]
+    MakeDSIPacket(0x72, 0x02), //FW_CGOUT_L[20]
+    MakeDSIPacket(0x73, 0x02), //FW_CGOUT_L[21]
+    MakeDSIPacket(0x74, 0x02), //FW_CGOUT_L[22]
+
+    MakeDSIPacket(0x75, 0x0A), //BW_CGOUT_L[1]   RESE_ODD
+    MakeDSIPacket(0x76, 0x02), //BW_CGOUT_L[2]   VSSG_ODD
+    MakeDSIPacket(0x77, 0x02), //BW_CGOUT_L[3]   VSSG_ODD
+    MakeDSIPacket(0x78, 0x06), //BW_CGOUT_L[4]   STV2_ODD
+    MakeDSIPacket(0x79, 0x15), //BW_CGOUT_L[5]   VDD2_ODD
+    MakeDSIPacket(0x7a, 0x14), //BW_CGOUT_L[6]   VDD1_ODD
+    MakeDSIPacket(0x7b, 0x02), //BW_CGOUT_L[7]
+    MakeDSIPacket(0x7c, 0x10), //BW_CGOUT_L[8]   CK11
+    MakeDSIPacket(0x7d, 0x11), //BW_CGOUT_L[9]   CK9
+    MakeDSIPacket(0x7e, 0x02), //BW_CGOUT_L[10]
+    MakeDSIPacket(0x7f, 0x0C), //BW_CGOUT_L[11]  CK7
+    MakeDSIPacket(0x80, 0x0D), //BW_CGOUT_L[12]  CK5
+    MakeDSIPacket(0x81, 0x02), //BW_CGOUT_L[13]
+    MakeDSIPacket(0x82, 0x0E), //BW_CGOUT_L[14]  CK3
+    MakeDSIPacket(0x83, 0x0F), //BW_CGOUT_L[15]  CK1
+    MakeDSIPacket(0x84, 0x08), //BW_CGOUT_L[16]  STV1_ODD
+    MakeDSIPacket(0x85, 0x02), //BW_CGOUT_L[17]
+    MakeDSIPacket(0x86, 0x02), //BW_CGOUT_L[18]
+    MakeDSIPacket(0x87, 0x02), //BW_CGOUT_L[19]
+    MakeDSIPacket(0x88, 0x02), //BW_CGOUT_L[20]
+    MakeDSIPacket(0x89, 0x02), //BW_CGOUT_L[21]
+    MakeDSIPacket(0x8A, 0x02), //BW_CGOUT_L[22]
+
+    MakeDSIPacket(0xFF, 0x98, 0x81, 0x04),
+    //MakeDSIPacket(0x2F, 0x01, 0x01),     //BIST
+    MakeDSIPacket(0x3B, 0xC0), // ILI4003D sel
+    MakeDSIPacket(0x6C, 0x15),
+    MakeDSIPacket(0x6E, 0x30), //VGH 16V
+    MakeDSIPacket(0x6F, 0x55), //Pump ratio VGH=VSPX4 VGL=VSNX4 //57
+    MakeDSIPacket(0x3A, 0x24),
+    MakeDSIPacket(0x8D, 0x1F),
+    MakeDSIPacket(0x87, 0xBA),
+    MakeDSIPacket(0x26, 0x76),
+    MakeDSIPacket(0xB2, 0xD1),
+    MakeDSIPacket(0xB5, 0x07),
+    MakeDSIPacket(0x35, 0x1F),
+    MakeDSIPacket(0x88, 0x0B),
+    MakeDSIPacket(0x21, 0x30),
+
+    MakeDSIPacket(0xFF, 0x98, 0x81, 0x01),
+
+    MakeDSIPacket(0xB7, 0x03), // DSI 2 Lanes
+
+    MakeDSIPacket(0x22, 0x0A),
+    MakeDSIPacket(0x31, 0x09),
+    MakeDSIPacket(0x40, 0x33),
+    MakeDSIPacket(0x53, 0x37),
+    MakeDSIPacket(0x55, 0x38),
+    MakeDSIPacket(0x50, 0x95),
+    MakeDSIPacket(0x51, 0x95),
+    MakeDSIPacket(0x60, 0x09),
+    MakeDSIPacket(0x56, 0x00),
+
+    MakeDSIPacket(0xA0, 0x00), //VP255Gamma P
+    MakeDSIPacket(0xA1, 0x0D), //VP251
+    MakeDSIPacket(0xA2, 0x1D), //VP247
+    MakeDSIPacket(0xA3, 0x11), //VP243
+    MakeDSIPacket(0xA4, 0x0C), //VP239
+    MakeDSIPacket(0xA5, 0x23), //VP231
+    MakeDSIPacket(0xA6, 0x17), //VP219
+    MakeDSIPacket(0xA7, 0x1C), //VP203
+    MakeDSIPacket(0xA8, 0x82), //VP175
+    MakeDSIPacket(0xA9, 0x21), //VP144
+    MakeDSIPacket(0xAA, 0x2A), //VP111
+    MakeDSIPacket(0xAB, 0x6B), //VP80
+    MakeDSIPacket(0xAC, 0x19), //VP52
+    MakeDSIPacket(0xAD, 0x14), //VP36
+    MakeDSIPacket(0xAE, 0x45), //VP24
+    MakeDSIPacket(0xAF, 0x1D), //VP16
+    MakeDSIPacket(0xB0, 0x23), //VP12
+    MakeDSIPacket(0xB1, 0x52), //VP8
+    MakeDSIPacket(0xB2, 0x63), //VP4
+    MakeDSIPacket(0xB3, 0x39), //VP0
+
+    MakeDSIPacket(0xC0, 0x00), //VN255 GAMMA N
+    MakeDSIPacket(0xC1, 0x0D), //VN251
+    MakeDSIPacket(0xC2, 0x1D), //VN247
+    MakeDSIPacket(0xC3, 0x11), //VN243
+    MakeDSIPacket(0xC4, 0x0C), //VN239
+    MakeDSIPacket(0xC5, 0x23), //VN231
+    MakeDSIPacket(0xC6, 0x17), //VN219
+    MakeDSIPacket(0xC7, 0x1C), //VN203
+    MakeDSIPacket(0xC8, 0x82), //VN175
+    MakeDSIPacket(0xC9, 0x21), //VN144
+    MakeDSIPacket(0xCA, 0x2A), //VN111
+    MakeDSIPacket(0xCB, 0x6B), //VN80
+    MakeDSIPacket(0xCC, 0x19), //VN52
+    MakeDSIPacket(0xCD, 0x14), //VN36
+    MakeDSIPacket(0xCE, 0x45), //VN24
+    MakeDSIPacket(0xCF, 0x1D), //VN16
+    MakeDSIPacket(0xD0, 0x23), //VN12
+    MakeDSIPacket(0xD1, 0x52), //VN8
+    MakeDSIPacket(0xD2, 0x63), //VN4
+    MakeDSIPacket(0xD3, 0x39), //VN0
+#elif CONFIG_DISPLAY_ILI9881C_PRESET == DISPLAY_ILI9881C_PRESET_QT101IM2QA805
+    MakeDSIPacket(0xFF, 0x98, 0x81, 0x03),
+
+    //GIP_1
+    MakeDSIPacket(0x01, 0x00),
+    MakeDSIPacket(0x02, 0x00),
+    MakeDSIPacket(0x03, 0x53), //STVA=STV2_4
+    MakeDSIPacket(0x04, 0xD3), //STVB=STV1_3
+    MakeDSIPacket(0x05, 0x00),
+    MakeDSIPacket(0x06, 0x0D), //STVA_Rise
+    MakeDSIPacket(0x07, 0x08), //STVB_Rise
+    MakeDSIPacket(0x08, 0x00),
+    MakeDSIPacket(0x09, 0x00),
+    MakeDSIPacket(0x0a, 0x00),
+    MakeDSIPacket(0x0b, 0x00),
+    MakeDSIPacket(0x0c, 0x00),
+    MakeDSIPacket(0x0d, 0x00),
+    MakeDSIPacket(0x0e, 0x00),
+    MakeDSIPacket(0x0f, 0x28), //CLW1(ALR) Duty=45%
+    MakeDSIPacket(0x10, 0x28), //CLW2(ARR) Duty=45%
+    MakeDSIPacket(0x11, 0x00),
+    MakeDSIPacket(0x12, 0x00),
+    MakeDSIPacket(0x13, 0x00), //CLWX(ATF)
+    MakeDSIPacket(0x14, 0x00),
+    MakeDSIPacket(0x15, 0x00),
+    MakeDSIPacket(0x16, 0x00),
+    MakeDSIPacket(0x17, 0x00),
+    MakeDSIPacket(0x18, 0x00),
+    MakeDSIPacket(0x19, 0x00),
+    MakeDSIPacket(0x1a, 0x00),
+    MakeDSIPacket(0x1b, 0x00),
+    MakeDSIPacket(0x1c, 0x00),
+    MakeDSIPacket(0x1d, 0x00),
+    MakeDSIPacket(0x1e, 0x40), //CLKA 40笆は C0も笆は(X8把σCLKB)
+    MakeDSIPacket(0x1f, 0x80),
+    MakeDSIPacket(0x20, 0x06), //CLKA_Rise
+    MakeDSIPacket(0x21, 0x01), //CLKA_Fall
+    MakeDSIPacket(0x22, 0x00),
+    MakeDSIPacket(0x23, 0x00),
+    MakeDSIPacket(0x24, 0x00),
+    MakeDSIPacket(0x25, 0x00),
+    MakeDSIPacket(0x26, 0x00),
+    MakeDSIPacket(0x27, 0x00),
+    MakeDSIPacket(0x28, 0x33), //CLK Phase
+    MakeDSIPacket(0x29, 0x33), //CLK overlap
+    MakeDSIPacket(0x2a, 0x00),
+    MakeDSIPacket(0x2b, 0x00),
+    MakeDSIPacket(0x2c, 0x00),
+    MakeDSIPacket(0x2d, 0x00),
+    MakeDSIPacket(0x2e, 0x00),
+    MakeDSIPacket(0x2f, 0x00),
+    MakeDSIPacket(0x30, 0x00),
+    MakeDSIPacket(0x31, 0x00),
+    MakeDSIPacket(0x32, 0x00),
+    MakeDSIPacket(0x33, 0x00),
+    MakeDSIPacket(0x34, 0x03), //VDD1&2 overlap 0us
+    MakeDSIPacket(0x35, 0x00),
+    MakeDSIPacket(0x36, 0x00),
+    MakeDSIPacket(0x37, 0x00),
+    MakeDSIPacket(0x38, 0x96), //VDD1&2 toggle 2.5sec
+    MakeDSIPacket(0x39, 0x00),
+    MakeDSIPacket(0x3a, 0x00),
+    MakeDSIPacket(0x3b, 0x00),
+    MakeDSIPacket(0x3c, 0x00),
+    MakeDSIPacket(0x3d, 0x00),
+    MakeDSIPacket(0x3e, 0x00),
+    MakeDSIPacket(0x3f, 0x00),
+    MakeDSIPacket(0x40, 0x00),
+    MakeDSIPacket(0x41, 0x00),
+    MakeDSIPacket(0x42, 0x00),
+    MakeDSIPacket(0x43, 0x00),
+    MakeDSIPacket(0x44, 0x00),
+
+    //GIP_2
+    MakeDSIPacket(0x50, 0x00),
+    MakeDSIPacket(0x51, 0x23),
+    MakeDSIPacket(0x52, 0x45),
+    MakeDSIPacket(0x53, 0x67),
+    MakeDSIPacket(0x54, 0x89),
+    MakeDSIPacket(0x55, 0xAB),
+    MakeDSIPacket(0x56, 0x01),
+    MakeDSIPacket(0x57, 0x23),
+    MakeDSIPacket(0x58, 0x45),
+    MakeDSIPacket(0x59, 0x67),
+    MakeDSIPacket(0x5a, 0x89),
+    MakeDSIPacket(0x5b, 0xAB),
+    MakeDSIPacket(0x5c, 0xCD),
+    MakeDSIPacket(0x5d, 0xEF),
+
+    //GIP_3
+    MakeDSIPacket(0x5e, 0x00),
+    MakeDSIPacket(0x5f, 0x08), //FW_CGOUT_L[1]    STV3
+    MakeDSIPacket(0x60, 0x08), //FW_CGOUT_L[2]    STV3
+    MakeDSIPacket(0x61, 0x06), //FW_CGOUT_L[3]    STV4
+    MakeDSIPacket(0x62, 0x06), //FW_CGOUT_L[4]    STV4
+    MakeDSIPacket(0x63, 0x01), //FW_CGOUT_L[5]    VDS
+    MakeDSIPacket(0x64, 0x01), //FW_CGOUT_L[6]    VDS
+    MakeDSIPacket(0x65, 0x00), //FW_CGOUT_L[7]    VSD
+    MakeDSIPacket(0x66, 0x00), //FW_CGOUT_L[8]    VSD
+    MakeDSIPacket(0x67, 0x02), //FW_CGOUT_L[9]
+    MakeDSIPacket(0x68, 0x15), //FW_CGOUT_L[10]   VDD2
+    MakeDSIPacket(0x69, 0x15), //FW_CGOUT_L[11]   VDD2
+    MakeDSIPacket(0x6a, 0x14), //FW_CGOUT_L[12]   VDD1
+    MakeDSIPacket(0x6b, 0x14), //FW_CGOUT_L[13]   VDD1
+    MakeDSIPacket(0x6c, 0x0D), //FW_CGOUT_L[14]   CLK8
+    MakeDSIPacket(0x6d, 0x0D), //FW_CGOUT_L[15]   CLK8
+    MakeDSIPacket(0x6e, 0x0C), //FW_CGOUT_L[16]   CLK6
+    MakeDSIPacket(0x6f, 0x0C), //FW_CGOUT_L[17]   CLK6
+    MakeDSIPacket(0x70, 0x0F), //FW_CGOUT_L[18]   CLK4
+    MakeDSIPacket(0x71, 0x0F), //FW_CGOUT_L[19]   CLK4
+    MakeDSIPacket(0x72, 0x0E), //FW_CGOUT_L[20]   CLK2
+    MakeDSIPacket(0x73, 0x0E), //FW_CGOUT_L[21]   CLK2
+    MakeDSIPacket(0x74, 0x02), //FW_CGOUT_L[22]   VGL
+
+    MakeDSIPacket(0x75, 0x08), //BW_CGOUT_L[1]
+    MakeDSIPacket(0x76, 0x08), //BW_CGOUT_L[2]
+    MakeDSIPacket(0x77, 0x06), //BW_CGOUT_L[3]
+    MakeDSIPacket(0x78, 0x06), //BW_CGOUT_L[4]
+    MakeDSIPacket(0x79, 0x01), //BW_CGOUT_L[5]
+    MakeDSIPacket(0x7a, 0x01), //BW_CGOUT_L[6]
+    MakeDSIPacket(0x7b, 0x00), //BW_CGOUT_L[7]
+    MakeDSIPacket(0x7c, 0x00), //BW_CGOUT_L[8]
+    MakeDSIPacket(0x7d, 0x02), //BW_CGOUT_L[9]
+    MakeDSIPacket(0x7e, 0x15), //BW_CGOUT_L[10]
+    MakeDSIPacket(0x7f, 0x15), //BW_CGOUT_L[11]
+    MakeDSIPacket(0x80, 0x14), //BW_CGOUT_L[12]
+    MakeDSIPacket(0x81, 0x14), //BW_CGOUT_L[13]
+    MakeDSIPacket(0x82, 0x0D), //BW_CGOUT_L[14]
+    MakeDSIPacket(0x83, 0x0D), //BW_CGOUT_L[15]
+    MakeDSIPacket(0x84, 0x0C), //BW_CGOUT_L[16]
+    MakeDSIPacket(0x85, 0x0C), //BW_CGOUT_L[17]
+    MakeDSIPacket(0x86, 0x0F), //BW_CGOUT_L[18]
+    MakeDSIPacket(0x87, 0x0F), //BW_CGOUT_L[19]
+    MakeDSIPacket(0x88, 0x0E), //BW_CGOUT_L[20]
+    MakeDSIPacket(0x89, 0x0E), //BW_CGOUT_L[21]
+    MakeDSIPacket(0x8A, 0x02), //BW_CGOUT_L[22]
+
+    //CMD_Page 4
+    MakeDSIPacket(0xFF, 0x98, 0x81, 0x04),
+    MakeDSIPacket(0x6E, 0x2B), //VGH 15V
+    MakeDSIPacket(0x6F, 0x37), //reg vcl + pumping ratio VGH=3x VGL=-3x
+    MakeDSIPacket(0x3A, 0xA4), //POWER SAVING
+    MakeDSIPacket(0x8D, 0x1A), //VGL -11V
+    MakeDSIPacket(0x87, 0xBA), //ESD
+    MakeDSIPacket(0xB2, 0xD1),
+    MakeDSIPacket(0x88, 0x0B),
+    MakeDSIPacket(0x38, 0x01),
+    MakeDSIPacket(0x39, 0x00),
+    MakeDSIPacket(0xB5, 0x07),
+    MakeDSIPacket(0x31, 0x75),
+    MakeDSIPacket(0x3B, 0x98),
+
+    //CMD_Page 1
+    MakeDSIPacket(0xFF, 0x98, 0x81, 0x01),
+
+    MakeDSIPacket(0xB7, 0x03), // DSI 2 Lanes
+
+    MakeDSIPacket(0x22, 0x0A), //BGR, 0x SS
+    MakeDSIPacket(0x31, 0x00), //Column inversion
+    MakeDSIPacket(0x53, 0x40), //VCOM1
+    MakeDSIPacket(0x55, 0x40), //VCOM2
+    MakeDSIPacket(0x50, 0x99), //VREG1OUT 4.5V
+    MakeDSIPacket(0x51, 0x94), //VREG2OUT -4.5V
+    MakeDSIPacket(0x60, 0x10), //SDT 3.5us
+    MakeDSIPacket(0x62, 0x20),
+
+    //============Gamma START=============
+
+    //Pos Register
+    MakeDSIPacket(0xA0, 0x00),
+    MakeDSIPacket(0xA1, 0x00),
+    MakeDSIPacket(0xA2, 0x15),
+    MakeDSIPacket(0xA3, 0x14),
+    MakeDSIPacket(0xA4, 0x1B),
+    MakeDSIPacket(0xA5, 0x2F),
+    MakeDSIPacket(0xA6, 0x25),
+    MakeDSIPacket(0xA7, 0x24),
+    MakeDSIPacket(0xA8, 0x80),
+    MakeDSIPacket(0xA9, 0x1F),
+    MakeDSIPacket(0xAA, 0x2C),
+    MakeDSIPacket(0xAB, 0x6C),
+    MakeDSIPacket(0xAC, 0x16),
+    MakeDSIPacket(0xAD, 0x14),
+    MakeDSIPacket(0xAE, 0x4D),
+    MakeDSIPacket(0xAF, 0x20),
+    MakeDSIPacket(0xB0, 0x29),
+    MakeDSIPacket(0xB1, 0x4F),
+    MakeDSIPacket(0xB2, 0x5F),
+    MakeDSIPacket(0xB3, 0x23),
+
+    //Neg Register
+    MakeDSIPacket(0xC0, 0x00),
+    MakeDSIPacket(0xC1, 0x2E),
+    MakeDSIPacket(0xC2, 0x3B),
+    MakeDSIPacket(0xC3, 0x15),
+    MakeDSIPacket(0xC4, 0x16),
+    MakeDSIPacket(0xC5, 0x28),
+    MakeDSIPacket(0xC6, 0x1A),
+    MakeDSIPacket(0xC7, 0x1C),
+    MakeDSIPacket(0xC8, 0xA7),
+    MakeDSIPacket(0xC9, 0x1B),
+    MakeDSIPacket(0xCA, 0x28),
+    MakeDSIPacket(0xCB, 0x92),
+    MakeDSIPacket(0xCC, 0x1F),
+    MakeDSIPacket(0xCD, 0x1C),
+    MakeDSIPacket(0xCE, 0x4B),
+    MakeDSIPacket(0xCF, 0x1F),
+    MakeDSIPacket(0xD0, 0x28),
+    MakeDSIPacket(0xD1, 0x4E),
+    MakeDSIPacket(0xD2, 0x5C),
+    MakeDSIPacket(0xD3, 0x23),
+#elif CONFIG_DISPLAY_ILI9881C_PRESET == DISPLAY_ILI9881C_PRESET_HD50004C30
+    //Page 3
+    MakeDSIPacket(0xFF, 0x98, 0x81, 0x03),
+
+    //GIP 1
+    MakeDSIPacket(0x01, 0x00),
+    MakeDSIPacket(0x02, 0x00),
+    MakeDSIPacket(0x03, 0x73),
+    MakeDSIPacket(0x04, 0x00),
+    MakeDSIPacket(0x05, 0x00),
+    MakeDSIPacket(0x06, 0x08),
+    MakeDSIPacket(0x07, 0x00),
+    MakeDSIPacket(0x08, 0x00),
+    MakeDSIPacket(0x09, 0x1B),
+    MakeDSIPacket(0x0a, 0x01),
+    MakeDSIPacket(0x0b, 0x01),
+    MakeDSIPacket(0x0c, 0x0D),
+    MakeDSIPacket(0x0d, 0x01),
+    MakeDSIPacket(0x0e, 0x01),
+    MakeDSIPacket(0x0f, 0x26),
+    MakeDSIPacket(0x10, 0x26),
+    MakeDSIPacket(0x11, 0x00),
+    MakeDSIPacket(0x12, 0x00),
+    MakeDSIPacket(0x13, 0x02),
+    MakeDSIPacket(0x14, 0x00),
+    MakeDSIPacket(0x15, 0x00),
+    MakeDSIPacket(0x16, 0x00),
+    MakeDSIPacket(0x17, 0x00),
+    MakeDSIPacket(0x18, 0x00),
+    MakeDSIPacket(0x19, 0x00),
+    MakeDSIPacket(0x1a, 0x00),
+    MakeDSIPacket(0x1b, 0x00),
+    MakeDSIPacket(0x1c, 0x00),
+    MakeDSIPacket(0x1d, 0x00),
+    MakeDSIPacket(0x1e, 0x40),
+    MakeDSIPacket(0x1f, 0x00),
+    MakeDSIPacket(0x20, 0x06),
+    MakeDSIPacket(0x21, 0x01),
+    MakeDSIPacket(0x22, 0x00),
+    MakeDSIPacket(0x23, 0x00),
+    MakeDSIPacket(0x24, 0x00),
+    MakeDSIPacket(0x25, 0x00),
+    MakeDSIPacket(0x26, 0x00),
+    MakeDSIPacket(0x27, 0x00),
+    MakeDSIPacket(0x28, 0x33),
+    MakeDSIPacket(0x29, 0x03),
+    MakeDSIPacket(0x2a, 0x00),
+    MakeDSIPacket(0x2b, 0x00),
+    MakeDSIPacket(0x2c, 0x00),
+    MakeDSIPacket(0x2d, 0x00),
+    MakeDSIPacket(0x2e, 0x00),
+    MakeDSIPacket(0x2f, 0x00),
+    MakeDSIPacket(0x30, 0x00),
+    MakeDSIPacket(0x31, 0x00),
+    MakeDSIPacket(0x32, 0x00),
+    MakeDSIPacket(0x32, 0x00),
+    MakeDSIPacket(0x33, 0x00),
+    MakeDSIPacket(0x34, 0x00),
+    MakeDSIPacket(0x35, 0x00),
+    MakeDSIPacket(0x36, 0x00),
+    MakeDSIPacket(0x37, 0x00),
+    MakeDSIPacket(0x38, 0x00),
+    MakeDSIPacket(0x39, 0x00),
+    MakeDSIPacket(0x3a, 0x00),
+    MakeDSIPacket(0x3b, 0x00),
+    MakeDSIPacket(0x3c, 0x00),
+    MakeDSIPacket(0x3d, 0x00),
+    MakeDSIPacket(0x3e, 0x00),
+    MakeDSIPacket(0x3f, 0x00),
+    MakeDSIPacket(0x40, 0x00),
+    MakeDSIPacket(0x41, 0x00),
+    MakeDSIPacket(0x42, 0x00),
+    MakeDSIPacket(0x43, 0x00),
+    MakeDSIPacket(0x44, 0x00),
+
+    // GIP2
+    MakeDSIPacket(0x50, 0x01),
+    MakeDSIPacket(0x51, 0x23),
+    MakeDSIPacket(0x52, 0x45),
+    MakeDSIPacket(0x53, 0x67),
+    MakeDSIPacket(0x54, 0x89),
+    MakeDSIPacket(0x55, 0xab),
+    MakeDSIPacket(0x56, 0x01),
+    MakeDSIPacket(0x57, 0x23),
+    MakeDSIPacket(0x58, 0x45),
+    MakeDSIPacket(0x59, 0x67),
+    MakeDSIPacket(0x5a, 0x89),
+    MakeDSIPacket(0x5b, 0xab),
+    MakeDSIPacket(0x5c, 0xcd),
+    MakeDSIPacket(0x5d, 0xef),
+
+    // GIP3
+    MakeDSIPacket(0x5e, 0x11),
+    MakeDSIPacket(0x5f, 0x02),
+    MakeDSIPacket(0x60, 0x00),
+    MakeDSIPacket(0x61, 0x07),
+    MakeDSIPacket(0x62, 0x06),
+    MakeDSIPacket(0x63, 0x0E),
+    MakeDSIPacket(0x64, 0x0F),
+    MakeDSIPacket(0x65, 0x0C),
+    MakeDSIPacket(0x66, 0x0D),
+    MakeDSIPacket(0x67, 0x02),
+    MakeDSIPacket(0x68, 0x02),
+    MakeDSIPacket(0x69, 0x02),
+    MakeDSIPacket(0x6a, 0x02),
+    MakeDSIPacket(0x6b, 0x02),
+    MakeDSIPacket(0x6c, 0x02),
+    MakeDSIPacket(0x6d, 0x02),
+    MakeDSIPacket(0x6e, 0x02),
+    MakeDSIPacket(0x6f, 0x02),
+    MakeDSIPacket(0x70, 0x02),
+    MakeDSIPacket(0x71, 0x02),
+    MakeDSIPacket(0x72, 0x02),
+    MakeDSIPacket(0x73, 0x05),
+    MakeDSIPacket(0x74, 0x01),
+    MakeDSIPacket(0x75, 0x02),
+    MakeDSIPacket(0x76, 0x00),
+    MakeDSIPacket(0x77, 0x07),
+    MakeDSIPacket(0x78, 0x06),
+    MakeDSIPacket(0x79, 0x0E),
+    MakeDSIPacket(0x7a, 0x0F),
+    MakeDSIPacket(0x7b, 0x0C),
+    MakeDSIPacket(0x7c, 0x0D),
+    MakeDSIPacket(0x7d, 0x02),
+    MakeDSIPacket(0x7e, 0x02),
+    MakeDSIPacket(0x7f, 0x02),
+    MakeDSIPacket(0x80, 0x02),
+    MakeDSIPacket(0x81, 0x02),
+    MakeDSIPacket(0x83, 0x02),
+    MakeDSIPacket(0x84, 0x02),
+    MakeDSIPacket(0x85, 0x02),
+    MakeDSIPacket(0x86, 0x02),
+    MakeDSIPacket(0x87, 0x02),
+    MakeDSIPacket(0x88, 0x02),
+    MakeDSIPacket(0x89, 0x05),
+    MakeDSIPacket(0x8A, 0x01),
+
+    // Page 4
+    MakeDSIPacket(0xFF, 0x98, 0x81, 0x04),
+
+    MakeDSIPacket(0x38, 0x01),
+    MakeDSIPacket(0x39, 0x00),
+    MakeDSIPacket(0x6C, 0x15),
+    MakeDSIPacket(0x6E, 0x1A), //di_pwr_reg=0 VGH clamp 15V
+    MakeDSIPacket(0x6F, 0x25), //reg vcl + VGH pumping ratio 3x VGL=-2x
+    MakeDSIPacket(0x3A, 0xA4),
+    MakeDSIPacket(0x8D, 0x20), //VGL clamp -10V
+    MakeDSIPacket(0x87, 0xBA),
+    MakeDSIPacket(0x3B, 0x98),
+
+    // CMD Page 1
+    MakeDSIPacket(0xFF, 0x98, 0x81, 0x01),
+
+    MakeDSIPacket(0xB7, 0x03), // DSI 2 Lanes
+
+    MakeDSIPacket(0x22, 0x0A), //BGR, SS
+    MakeDSIPacket(0x31, 0x00), //column inversion
+    MakeDSIPacket(0x50, 0x6B), //VREG1OUT=3.996V
+    MakeDSIPacket(0x51, 0x66), //VREG2OUT=-3.996V
+    MakeDSIPacket(0x53, 0x73), //VCOM1
+    MakeDSIPacket(0x55, 0x8B), //VCOM2
+    MakeDSIPacket(0x60, 0x1B), //SDT
+    MakeDSIPacket(0x61, 0x01),
+    MakeDSIPacket(0x62, 0x0C),
+    MakeDSIPacket(0x63, 0x00),
+
+    // VP255	Gamma P
+    MakeDSIPacket(0xA0, 0x00),
+    // VP251
+    MakeDSIPacket(0xA1, 0x15),
+    // VP247
+    MakeDSIPacket(0xA2, 0x1F),
+    // VP243
+    MakeDSIPacket(0xA3, 0x13),
+    // VP239
+    MakeDSIPacket(0xA4, 0x11),
+    // VP231
+    MakeDSIPacket(0xA5, 0x21),
+    // VP219
+    MakeDSIPacket(0xA6, 0x17),
+    // VP203
+    MakeDSIPacket(0xA7, 0x1B),
+    // VP175
+    MakeDSIPacket(0xA8, 0x6B),
+    // VP144
+    MakeDSIPacket(0xA9, 0x1E),
+    // VP111
+    MakeDSIPacket(0xAA, 0x2B),
+    // VP80
+    MakeDSIPacket(0xAB, 0x5D),
+    // VP52
+    MakeDSIPacket(0xAC, 0x19),
+    // VP36
+    MakeDSIPacket(0xAD, 0x14),
+    // VP24
+    MakeDSIPacket(0xAE, 0x4B),
+    // VP16
+    MakeDSIPacket(0xAF, 0x1D),
+    // VP12
+    MakeDSIPacket(0xB0, 0x27),
+    // VP8
+    MakeDSIPacket(0xB1, 0x49),
+    // VP4
+    MakeDSIPacket(0xB2, 0x5D),
+    // VP0
+    MakeDSIPacket(0xB3, 0x39),
+
+    // VN255 GAMMA N
+    MakeDSIPacket(0xC0, 0x00),
+    // VP251
+    MakeDSIPacket(0xC1, 0x01),
+    // VP247
+    MakeDSIPacket(0xC2, 0x0C),
+    // VP243
+    MakeDSIPacket(0xC3, 0x11),
+    // VP239
+    MakeDSIPacket(0xC4, 0x15),
+    // VP231
+    MakeDSIPacket(0xC5, 0x28),
+    // VP219
+    MakeDSIPacket(0xC6, 0x1B),
+    // VP203
+    MakeDSIPacket(0xC7, 0x1C),
+    // VP175
+    MakeDSIPacket(0xC8, 0x62),
+    // VP144
+    MakeDSIPacket(0xC9, 0x1C),
+    // VP111
+    MakeDSIPacket(0xCA, 0x29),
+    // VP80
+    MakeDSIPacket(0xCB, 0x60),
+    // VP52
+    MakeDSIPacket(0xCC, 0x16),
+    // VP36
+    MakeDSIPacket(0xCD, 0x17),
+    // VP24
+    MakeDSIPacket(0xCE, 0x4A),
+    // VP16
+    MakeDSIPacket(0xCF, 0x23),
+    // VP12
+    MakeDSIPacket(0xD0, 0x24),
+    // VP8
+    MakeDSIPacket(0xD1, 0x4F),
+    // VP4
+    MakeDSIPacket(0xD2, 0x5F),
+    // VP0
+    MakeDSIPacket(0xD3, 0x39),
+#endif
+
+    MakeDSIPacket(0xFF, 0x98, 0x81, 0x00),
+
+    MakeDSIPacket(DCSExitSleepMode),
+    MakeDSIDelay(120),
+
+    MakeDSIPacket(DCSSetDisplayOn),
+    MakeDSIDelay(20),
+
+    MakeDSIPacketEnd(),
+};
+
+static const DSIPacketStruct ReadSequence[] = {
+    MakeDSIPacket(0xFF, 0x98, 0x81, 0x01),
+
+    MakeDSIPacketRead(1, 0x00),
+    MakeDSIPacketRead(1, 0x01),
+    MakeDSIPacketRead(1, 0x02),
+
+    MakeDSIPacketEnd(),
+};
+
+#define ILI9881C_DISPLAY_ID 0x98815C00
+
+bool ILI9881CConstractor(DisplayStruct* display) {
+    DisplayStartupSequence(display, true, true, 20, 20, 120);
+
+    // DSI configuring config
+    uint32_t displayID = DisplayDSIReadID(display, ReadSequence);
+    if (displayID != ILI9881C_DISPLAY_ID)
+        return false;
+
+    display->ID = ILI9881C_DISPLAY_ID;
+
+    display->PixelClock = ILI9881C_PIXEL_CLOCK;
+
+    display->HorizontalSyncActive = ILI9881C_HSA;
+    display->HorizontalBackPorch  = ILI9881C_HBP;
+    display->HorizontalActive     = ILI9881C_HACT;
+    display->HorizontalFrontPorch = ILI9881C_HFP;
+
+    display->VerticalSyncActive = ILI9881C_VSA;
+    display->VerticalBackPorch  = ILI9881C_VBP;
+    display->VerticalActive     = ILI9881C_VACT;
+    display->VerticalFrontPorch = ILI9881C_VFP;
+
+    // DSI Config
+    display->ConfigPackets = ILI9881CConfigs;
+    display->Color         = DisplayColorRGB565;
+
+    DSIStruct* dsi   = display->DSIHandle;
+    dsi->LaneClock   = ILI9881C_LANE_CLOCK;
+    dsi->Lanes       = DSILanes2;
+    dsi->ColorCoding = DSIColorCoding16C1;
+
+    dsi->IsCommandMode = false;
+
+    return true;
+}

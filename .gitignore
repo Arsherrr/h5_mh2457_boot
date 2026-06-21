@@ -1,0 +1,7 @@
+MDK/Listings
+MDK/Objects
+*.scvd
+*.uvguix.*
+*.uvoptx
+JLinkLog.txt
+JLinkSettings.ini

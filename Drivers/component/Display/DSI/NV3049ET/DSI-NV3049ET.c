@@ -1,0 +1,291 @@
+#include "DSI-NV3049ET.h"
+
+static DSIPacketStruct NV3049ETConfigs[] = {
+#if CONFIG_DISPLAY_NV3049ET_PRESET == DISPLAY_NV3049ET_PRESET_ENH_TV0313A002
+    // Page 1
+    MakeDSIPacket(0xFF, 0x30),
+    MakeDSIPacket(0xFF, 0x49),
+    MakeDSIPacket(0xFF, 0x01),
+    MakeDSIPacket(0x31, 0x28),
+    MakeDSIPacket(0x30, 0x78),
+    // Modify:
+    //   - 0x25, 0x26: modify the VSA, VBP and VFP Timming
+    //   - 0x23: changed the reverse panel setting
+    MakeDSIPacket(0x25, (NV3049ET_VFP)),
+    MakeDSIPacket(0x26, (NV3049ET_VSA + NV3049ET_VBP)),
+    MakeDSIPacket(0x23, 0x02),
+
+    // Page 4
+    MakeDSIPacket(0xff, 0x30),
+    MakeDSIPacket(0xff, 0x49),
+    MakeDSIPacket(0xff, 0x04),
+    MakeDSIPacket(0x12, 0x44),
+    MakeDSIPacket(0x13, 0x44),
+    MakeDSIPacket(0x40, 0x90),
+    MakeDSIPacket(0x41, 0x63),
+    MakeDSIPacket(0x42, 0x93),
+    MakeDSIPacket(0x43, 0x73),
+    MakeDSIPacket(0x44, 0x26),
+    MakeDSIPacket(0x45, 0xFF),
+    MakeDSIPacket(0x46, 0xF8),
+    MakeDSIPacket(0x47, 0x31),
+    MakeDSIPacket(0x48, 0x00),
+    MakeDSIPacket(0x49, 0x00),
+    MakeDSIPacket(0x4A, 0x00),
+    MakeDSIPacket(0x16, 0x31),
+    MakeDSIPacket(0x17, 0x44),
+    MakeDSIPacket(0x59, 0x01),
+
+    // Page 1
+    MakeDSIPacket(0xFF, 0x30),
+    MakeDSIPacket(0xFF, 0x49),
+    MakeDSIPacket(0xFF, 0x01),
+
+    MakeDSIPacket(0x60, 0x00),
+    MakeDSIPacket(0x61, 0x0B),
+    MakeDSIPacket(0x64, 0x60),
+    MakeDSIPacket(0x65, 0x00),
+    MakeDSIPacket(0x66, 0x00),
+    MakeDSIPacket(0x70, 0x08),
+    MakeDSIPacket(0x7c, 0x03),
+    MakeDSIPacket(0x7D, 0xFE),
+    MakeDSIPacket(0x7E, 0x00),
+    MakeDSIPacket(0x7F, 0x3f),
+    MakeDSIPacket(0xd2, 0x76),
+    MakeDSIPacket(0xd4, 0x57),
+    MakeDSIPacket(0xd3, 0x49),
+    MakeDSIPacket(0xd5, 0x63), //VCOM
+
+    //
+    MakeDSIPacket(0xA2, 0x22),
+    MakeDSIPacket(0xC2, 0x24),
+    MakeDSIPacket(0xA3, 0x2A),
+    MakeDSIPacket(0xC3, 0x32),
+    MakeDSIPacket(0xA6, 0x26),
+    MakeDSIPacket(0xC6, 0x26),
+    MakeDSIPacket(0xA7, 0x3C),
+    MakeDSIPacket(0xC7, 0x40),
+    MakeDSIPacket(0xA1, 0x26),
+    MakeDSIPacket(0xC1, 0x28),
+    MakeDSIPacket(0xA8, 0x0D),
+    MakeDSIPacket(0xC8, 0x0B),
+    MakeDSIPacket(0xA9, 0x05),
+    MakeDSIPacket(0xC9, 0x01),
+    MakeDSIPacket(0xAA, 0x12),
+    MakeDSIPacket(0xCA, 0x10),
+    MakeDSIPacket(0xAB, 0x13),
+    MakeDSIPacket(0xCB, 0x11),
+    MakeDSIPacket(0xAC, 0x13),
+    MakeDSIPacket(0xCC, 0x11),
+    MakeDSIPacket(0xAD, 0x16),
+    MakeDSIPacket(0xCD, 0x14),
+    MakeDSIPacket(0xAE, 0x18),
+    MakeDSIPacket(0xCE, 0x18),
+    MakeDSIPacket(0xAF, 0x10),
+    MakeDSIPacket(0xCF, 0x0E),
+    MakeDSIPacket(0xA4, 0x25),
+    MakeDSIPacket(0xC4, 0x2F),
+    MakeDSIPacket(0xA0, 0x25),
+    MakeDSIPacket(0xC0, 0x27),
+    MakeDSIPacket(0xA5, 0x3F),
+    MakeDSIPacket(0xC5, 0x3F),
+
+    MakeDSIPacket(0xB0, 0x00),
+
+    // Page 3
+    MakeDSIPacket(0xff, 0x30),
+    MakeDSIPacket(0xff, 0x49),
+    MakeDSIPacket(0xff, 0x03),
+    MakeDSIPacket(0x01, 0x89),
+    MakeDSIPacket(0x02, 0x03),
+    MakeDSIPacket(0x03, 0x00),
+    MakeDSIPacket(0x04, 0x00),
+    MakeDSIPacket(0x05, 0x00),
+
+    MakeDSIPacket(0x09, 0x88),
+    MakeDSIPacket(0x0A, 0x03),
+    MakeDSIPacket(0x0B, 0x00),
+    MakeDSIPacket(0x0C, 0x00),
+    MakeDSIPacket(0x0D, 0x00),
+
+    MakeDSIPacket(0x11, 0x87),
+    MakeDSIPacket(0x12, 0x03),
+    MakeDSIPacket(0x13, 0x00),
+    MakeDSIPacket(0x14, 0x00),
+    MakeDSIPacket(0x15, 0x00),
+
+    MakeDSIPacket(0x19, 0x86),
+    MakeDSIPacket(0x1A, 0x03),
+    MakeDSIPacket(0x1B, 0x00),
+    MakeDSIPacket(0x1C, 0x00),
+    MakeDSIPacket(0x1D, 0x00),
+
+    MakeDSIPacket(0x21, 0x33),
+    MakeDSIPacket(0x22, 0xC3),
+    MakeDSIPacket(0x23, 0x00),
+    MakeDSIPacket(0x24, 0x00),
+    MakeDSIPacket(0x25, 0x00),
+
+    MakeDSIPacket(0x40, 0x38),
+    MakeDSIPacket(0x41, 0x01),
+    MakeDSIPacket(0x42, 0x03),
+    MakeDSIPacket(0x43, 0xC5),
+    MakeDSIPacket(0x44, 0x00),
+    MakeDSIPacket(0x45, 0x00),
+    MakeDSIPacket(0x46, 0x00),
+    MakeDSIPacket(0x47, 0x00),
+
+    MakeDSIPacket(0x48, 0x38),
+    MakeDSIPacket(0x49, 0x00),
+    MakeDSIPacket(0x4A, 0x03),
+    MakeDSIPacket(0x4B, 0xC6),
+    MakeDSIPacket(0x4C, 0x00),
+    MakeDSIPacket(0x4D, 0x00),
+    MakeDSIPacket(0x4E, 0x00),
+    MakeDSIPacket(0x4F, 0x00),
+
+    MakeDSIPacket(0x50, 0x30),
+    MakeDSIPacket(0x51, 0x00),
+    MakeDSIPacket(0x52, 0x03),
+    MakeDSIPacket(0x53, 0xC7),
+    MakeDSIPacket(0x54, 0x00),
+    MakeDSIPacket(0x55, 0x00),
+    MakeDSIPacket(0x56, 0x00),
+    MakeDSIPacket(0x57, 0x00),
+
+    MakeDSIPacket(0x58, 0x30),
+    MakeDSIPacket(0x59, 0x01),
+    MakeDSIPacket(0x5A, 0x03),
+    MakeDSIPacket(0x5B, 0xC8),
+    MakeDSIPacket(0x5C, 0x00),
+    MakeDSIPacket(0x5D, 0x00),
+    MakeDSIPacket(0x5E, 0x00),
+    MakeDSIPacket(0x5F, 0x00),
+
+    MakeDSIPacket(0x60, 0x38),
+    MakeDSIPacket(0x61, 0x05),
+    MakeDSIPacket(0x62, 0x03),
+    MakeDSIPacket(0x63, 0xC1),
+    MakeDSIPacket(0x64, 0x00),
+    MakeDSIPacket(0x65, 0x00),
+    MakeDSIPacket(0x66, 0x00),
+    MakeDSIPacket(0x67, 0x00),
+
+    MakeDSIPacket(0x68, 0x38),
+    MakeDSIPacket(0x69, 0x04),
+    MakeDSIPacket(0x6A, 0x03),
+    MakeDSIPacket(0x6B, 0xC2),
+    MakeDSIPacket(0x6C, 0x00),
+    MakeDSIPacket(0x6D, 0x00),
+    MakeDSIPacket(0x6E, 0x00),
+    MakeDSIPacket(0x6F, 0x00),
+
+    MakeDSIPacket(0x70, 0x38),
+    MakeDSIPacket(0x71, 0x03),
+    MakeDSIPacket(0x72, 0x03),
+    MakeDSIPacket(0x73, 0xC3),
+    MakeDSIPacket(0x74, 0x00),
+    MakeDSIPacket(0x75, 0x00),
+    MakeDSIPacket(0x76, 0x00),
+    MakeDSIPacket(0x77, 0x00),
+
+    MakeDSIPacket(0x78, 0x38),
+    MakeDSIPacket(0x79, 0x02),
+    MakeDSIPacket(0x7A, 0x03),
+    MakeDSIPacket(0x7B, 0xC4),
+    MakeDSIPacket(0x7C, 0x00),
+    MakeDSIPacket(0x7D, 0x00),
+    MakeDSIPacket(0x7E, 0x00),
+    MakeDSIPacket(0x7F, 0x00),
+
+    MakeDSIPacket(0x81, 0x02),
+    MakeDSIPacket(0x82, 0x00),
+
+    MakeDSIPacket(0x90, 0x1f),
+    MakeDSIPacket(0x91, 0x1f),
+    MakeDSIPacket(0x92, 0x03),
+    MakeDSIPacket(0x93, 0x01),
+    MakeDSIPacket(0x94, 0x1C),
+    MakeDSIPacket(0x95, 0x1D),
+    MakeDSIPacket(0x96, 0x0F),
+    MakeDSIPacket(0x97, 0x0D),
+    MakeDSIPacket(0x98, 0x0B),
+    MakeDSIPacket(0x99, 0x09),
+    MakeDSIPacket(0x9A, 0x04),
+    MakeDSIPacket(0x9B, 0x1D),
+    MakeDSIPacket(0x9C, 0x1C),
+    MakeDSIPacket(0x9D, 0x1D),
+    MakeDSIPacket(0x9E, 0x1F),
+    MakeDSIPacket(0x9F, 0x1F),
+
+    MakeDSIPacket(0xa0, 0x1F),
+    MakeDSIPacket(0xa1, 0x1F),
+    MakeDSIPacket(0xa2, 0x1D),
+    MakeDSIPacket(0xa3, 0x1C),
+    MakeDSIPacket(0xa4, 0x1D),
+    MakeDSIPacket(0xa5, 0x04),
+    MakeDSIPacket(0xa6, 0x08),
+    MakeDSIPacket(0xa7, 0x0A),
+    MakeDSIPacket(0xa8, 0x0C),
+    MakeDSIPacket(0xa9, 0x0E),
+    MakeDSIPacket(0xaA, 0x1D),
+    MakeDSIPacket(0xaB, 0x1C),
+    MakeDSIPacket(0xaC, 0x00),
+    MakeDSIPacket(0xaD, 0x02),
+    MakeDSIPacket(0xaE, 0x1F),
+    MakeDSIPacket(0xaF, 0x1F),
+
+    // Page 0
+    MakeDSIPacket(0xff, 0x30),
+    MakeDSIPacket(0xff, 0x49),
+    MakeDSIPacket(0xff, 0x00),
+    // Donot enter Invert mode
+    // MakeDSIPacket(0x21, 0x00),
+    MakeDSIPacket(0x36, 0x00),
+    MakeDSIPacket(0x3A, 0x50),
+#endif
+
+    MakeDSIPacket(DCSExitSleepMode),
+    MakeDSIDelay(200),
+
+    MakeDSIPacket(DCSSetDisplayOn),
+    MakeDSIDelay(50),
+
+    MakeDSIPacketEnd(),
+};
+
+#define NV3049ET_DISPLAY_ID 0x3049D000
+
+bool NV3049ETConstractor(DisplayStruct* display) {
+    if (display->ID && display->ID != NV3049ET_DISPLAY_ID)
+        return false;
+
+    DisplayStartupSequence(display, true, true, 10, 10, 200);
+
+    if (!display->ID && (display->ID = DisplayDSIReadID(display, NULL)) != NV3049ET_DISPLAY_ID)
+        return false;
+
+    display->PixelClock = NV3049ET_PIXEL_CLOCK;
+
+    display->HorizontalSyncActive = NV3049ET_HSA;
+    display->HorizontalBackPorch  = NV3049ET_HBP;
+    display->HorizontalActive     = NV3049ET_HACT;
+    display->HorizontalFrontPorch = NV3049ET_HFP;
+
+    display->VerticalSyncActive = NV3049ET_VSA;
+    display->VerticalBackPorch  = NV3049ET_VBP;
+    display->VerticalActive     = NV3049ET_VACT;
+    display->VerticalFrontPorch = NV3049ET_VFP;
+
+    // DSI Config
+    display->ConfigPackets = NV3049ETConfigs;
+    display->Color         = DisplayColorRGB565;
+
+    DSIStruct* dsi     = display->DSIHandle;
+    dsi->LaneClock     = NV3049ET_LANE_CLOCK;
+    dsi->Lanes         = DSILanes1;
+    dsi->ColorCoding   = DSIColorCoding16C1;
+    dsi->IsCommandMode = false;
+
+    return true;
+}
