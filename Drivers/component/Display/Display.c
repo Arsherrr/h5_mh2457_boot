@@ -59,7 +59,7 @@ void DisplayTestPattern(DisplayStruct* display) {
 
         for (int y = 0; y < layer->Height; y++) {
             for (int x = 0; x < layer->Width; x++) {
-                p24->R = 255;
+                p24->R = 0;
                 p24->G = 0;
                 p24->B = 0;
                 p24++;

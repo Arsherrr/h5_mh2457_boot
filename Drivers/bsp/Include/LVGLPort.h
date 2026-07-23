@@ -12,7 +12,6 @@ extern "C" {
 #endif
 
 #include "DisplayBSP.h"
-#include "TouchBSP.h"
 #include "SDRAMBSP.h"
 #if USE_COMPONENT_GAUPORT
 #include "GAUPort.h"

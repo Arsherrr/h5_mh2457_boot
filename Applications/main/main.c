@@ -4,7 +4,8 @@
 #include "res_fs.h"
 #include "key.h"
 #include "io.h"
-#include "bin_lvgl_decoder.h"
+#include "jpeg_hw.h"
+#include "png_lvgl_decoder.h"
 #include "jpeg_lvgl_decoder.h"
 #include "img_cache.h"
 #include "tmr.h"
@@ -14,6 +15,10 @@
 #include "update.h"
 #include "io_config.h"
 #include "USBBSP.h"
+#include "img.h"
+#include "usb.h"
+#include "SDRAMBSP.h"
+#include "ui_selftest.h"
 
 #ifndef USE_HW_JPEG
 #define USE_HW_JPEG 1
@@ -23,6 +28,32 @@
 #define IS_KEY_UP()    get_key_state(KEY2)
 #define IS_KEY_DOWN()  get_key_state(KEY3)
 #define IS_KEY_ENTER() get_key_state(KEY4)
+
+/* MH2457 没有备份寄存器, 只能用 flash 保存共享信息. */
+#define SM_ADDR   (RES_LOGO_BASE - FLASH_SECTOR_SIZE)
+
+#define SM_MAGIC  (0x72616873)
+
+typedef enum {
+    SM_EVENT_NONE = 0,
+    SM_EVENT_OTA,
+    SM_EVENT_RESVD = 0xFFFF,
+} sm_event_e;
+
+typedef struct __attribute__((packed)) {
+    uint32_t   magic;
+    sm_event_e event;
+} shared_mem_t;
+
+int fputc(int c, FILE* stream)
+{
+    if (stream == stdout || stream == stderr) {
+        SEGGER_RTT_PutChar(0, (char)c);
+        return c;
+    }
+
+    return EOF;
+}
 
 vu8 usb_insert = 0;
 
@@ -45,10 +76,10 @@ static void keypad_read(lv_indev_t * indev, lv_indev_data_t * data)
     data->state = LV_INDEV_STATE_RELEASED;
 
     if (IS_KEY_UP()) {
-        data->key = LV_KEY_UP;
+        data->key = LV_KEY_LEFT;
         data->state = LV_INDEV_STATE_PRESSED;
     } else if (IS_KEY_DOWN()) {
-        data->key = LV_KEY_DOWN;
+        data->key = LV_KEY_RIGHT;
         data->state = LV_INDEV_STATE_PRESSED;
     } else if (IS_KEY_ESC()) {
         data->key = LV_KEY_BACKSPACE;//LV_KEY_ESC;
@@ -59,7 +90,7 @@ static void keypad_read(lv_indev_t * indev, lv_indev_data_t * data)
     }
 }
 
-static lv_indev_t * g_indevKeyPad = NULL;
+lv_indev_t * g_indevKeyPad = NULL;
 static void lv_indev_init(void)
 {
 	g_indevKeyPad = lv_indev_create(); /* 创建输入设备. */
@@ -67,16 +98,40 @@ static void lv_indev_init(void)
     lv_indev_set_read_cb(g_indevKeyPad, keypad_read); /* 绑定读取回调. */
 }
 
+extern int menu_select;
+extern int reset_config(void);
+extern int system_restart(void);
+void menu_select_handler(void)
+{
+    if (menu_select) {
+        if (menu_select == 1) {
+            usb_ota_mode();
+        } else if (menu_select == 2) {
+            usb_log_mode();
+        } else if (menu_select == 3) {
+            reset_config();
+            uint32_t tick = lv_tick_get();
+            while (1) {
+                if (lv_tick_get() - tick >= 3000) break;
+                lv_timer_handler();
+            }
+            system_restart();
+        }
+
+        menu_select = 0;
+    }
+}
+
 static u8 is_from_app(u8 erase)
 {
-    u8 buf[4] = {0x55, 0xAA, 0xBC, 0x85};
-    u32 addr = ADDR_UPD_INFO;
-    if (!memcmp((void*)addr, (void*)buf, 4))
+    shared_mem_t *sm = (shared_mem_t *)SM_ADDR;
+    
+    if (sm->magic == SM_MAGIC && sm->event == SM_EVENT_OTA)
     {
         if (erase)
         {
-            // FLASH_EraseSector(addr);
-            // CACHE_CleanAll(DCACHE);
+            FLASH_EraseSector(SM_ADDR);
+            CACHE_CleanAll(DCACHE);
         }
 
         return 1;
@@ -88,7 +143,7 @@ static u8 is_from_app(u8 erase)
 }
 
 static u8 is_upd_mode(void)
-{
+{   
     u16 cnt_usb_insert = 0;
     u16 cnt_usb_uninsert = 0;
     u16 cnt_press = 0;
@@ -141,7 +196,7 @@ static u8 is_upd_mode(void)
     }
 }
 
-void to_app(void)
+int to_app(void)
 {
     typedef int (*jump)(void);
     volatile int *ptr = (int *)ADDR_APP;
@@ -149,6 +204,10 @@ void to_app(void)
 
     if (*ptr != 0xFFFFFFFF)
     {
+        if (strncmp(name, (char *)ADDR_APP_NAME, LEN_IAP_NAME) != 0) {
+            return -1;
+        }
+
         uint8_t i;
 
         DSI_BACKLIGHT_ON(false);
@@ -180,29 +239,32 @@ void to_app(void)
         app = (jump)(*(__IO uint32_t*)(ADDR_APP + 4));
         __set_MSP(*(__IO uint32_t*) ADDR_APP);
         app();
+        
+        return 0;
     }
+    
+    return -1;
 }
 
-void usb_disconnect(void)
+extern int16_t at_enter_boot(void);
+static void at_enter_boot_mode(void)
 {
-    PeripheralEnable(PeripheralGPIOA, true); 
+    uint8_t try = 3;
+    do {
+        if (at_enter_boot() >= 0) {
+            printf("[AT] Enter boot successfully.\n");
+            return;
+        }
+    } while (--try);
     
-    GPIO_InitTypeDef GPIO_InitStructure;
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_Init(GPIOA, &GPIO_InitStructure);
-    
-    /* 拉低. */
-    GPIO_ResetBits(GPIOA, GPIO_Pin_12); 
-    
-    SystemDelay(300); 
+    printf("[AT] Enter boot failed\n");
 }
 
-extern void test_enter_upgrade_mode(void);
-extern void test_upgrade_done(void);
+extern void fs_init(void);
+extern int log_cache_create(void);
+extern void log_cache_destroy(void);
+extern void read_config(void);
+extern void ui_menu_init(void);
 
 int main(void)
 {
@@ -211,37 +273,66 @@ int main(void)
     delay_us_init();
     key_init();
     io_init();
-    uart_init(UART_ID_AT, AT_UART_BAUDRATE);
 
     printf("%s VERSION: %s\n", name, ver);
-
+    
     if (is_upd_mode()) {
+BOOT:
         printf("Enter Update Mode.\n");
-        test_enter_upgrade_mode();
+        uart_init(UART_ID_AT, AT_UART_BAUDRATE);
 
-        QSPI_Init(NULL);
-        QSPI_SetLatency(0);
+        SDRAMSetup();
 
-        usb_disconnect();
-        USBSetup();
-        
+        /* 文件系统. */
+        fs_init();
+        read_config();
+
+        /* LVGL 初始化. */
         LVGLSetup();
-        update_init();
-        is_from_app(1);
         DSI_BACKLIGHT_ON(true);
+        lv_indev_init();
+
+        /* JPEG 硬件编码初始化. */
+        jpeg_hw_mem_init();
+        jpeg_hw_init();
+        img_init();
+
         usb_insert = 1;
 
-        while (1)
-        {
+        if (is_from_app(0)) {
+            /* 直接进入 OTA 升级界面. */
+            usb_ota_mode();
+        } else {
+            /* 主菜单. */
+            ui_menu_init();
+            // ui_system_self_check_init(0, 0);
+        }
+
+        /* 刷新一次. */
+        lv_timer_handler();
+
+        /* 通知 AT32 进入 bootloader. */
+        at_enter_boot_mode();
+
+        while (is_ota_mode() == 0) {
+            menu_select_handler();
+            lv_timer_handler();
+        }
+
+        update_init();
+        is_from_app(1);
+
+        while (1) {
+            menu_select_handler();
             lv_timer_handler();
             update_handle();
         }
-    }
-    else
-    {
+    } else {
         printf("Run to main.\n");
-        test_upgrade_done();
-        to_app();
+        if (to_app() == -1) {
+            printf("Run to main failed.\n");
+            goto BOOT;
+        }
     }
 
     return 0;

@@ -16,6 +16,8 @@ extern "C" {
 
 void io_init(void);
 
+void usb_disconnect(void);
+
 #ifdef __cplusplus
 }
 #endif

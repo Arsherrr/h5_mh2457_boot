@@ -4,9 +4,9 @@
 #include "tmr.h"
 
 #define GPS_RX_BUF_SIZE       (4048)
-#define AT_RX_BUF_SIZE        (4048)
+#define AT_RX_BUF_SIZE        (1024)
 #define GPS_TX_BUF_SIZE       (1024)
-#define AT_TX_BUF_SIZE        (1024)
+#define AT_TX_BUF_SIZE        (4200)
 
 uint8_t gps_dma_rx_buf[GPS_RX_BUF_SIZE];
 uint8_t at_dma_rx_buf[AT_RX_BUF_SIZE];

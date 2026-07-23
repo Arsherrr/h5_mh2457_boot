@@ -1,17 +1,15 @@
 #include "img_cache.h"
 #include "res_fs.h"
-#include "rtthread.h"
 #include "lvgl.h"
 #include "../../../Libraries/OSS/lvgl/9.2.2/src/libs/lodepng/lodepng.h"
 #include <stdint.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 
-#define RES_BIN_BASE_ADDR 0x0910B600UL
-
 /* 先按照这种方式缓存, 内存应该是够的, 后面可以改成按需缓存.  */
 static const uint32_t IMG_CACHE_INDEX_LIST[] = {
-    /* Memu 小图标. */ 117, 118,
+    94, 95
 };
 
 #define IMG_CACHE_COUNT (sizeof(IMG_CACHE_INDEX_LIST) / sizeof(IMG_CACHE_INDEX_LIST[0]))
@@ -35,40 +33,34 @@ static const uint32_t IMG_CACHE_INDEX_LIST[] = {
 #endif
 
 #if _IMG_CACHE_LOG_LEVEL <= LOG_LEVEL_TRACE
-#define IMG_CACHE_LOG_TRACE(...) rt_kprintf("[IMG CACHE] " __VA_ARGS__)
+#define IMG_CACHE_LOG_TRACE(...) printf("[IMG CACHE] " __VA_ARGS__)
 #else
 #define IMG_CACHE_LOG_TRACE(...)
 #endif
 #if _IMG_CACHE_LOG_LEVEL <= LOG_LEVEL_INFO
-#define IMG_CACHE_LOG_INFO(...) rt_kprintf("[IMG CACHE] " __VA_ARGS__)
+#define IMG_CACHE_LOG_INFO(...) printf("[IMG CACHE] " __VA_ARGS__)
 #else
 #define IMG_CACHE_LOG_INFO(...)
 #endif
 #if _IMG_CACHE_LOG_LEVEL <= LOG_LEVEL_WARN
-#define IMG_CACHE_LOG_WARN(...) rt_kprintf("[IMG CACHE] [WARN] " __VA_ARGS__)
+#define IMG_CACHE_LOG_WARN(...) printf("[IMG CACHE] [WARN] " __VA_ARGS__)
 #else
 #define IMG_CACHE_LOG_WARN(...)
 #endif
 #if _IMG_CACHE_LOG_LEVEL <= LOG_LEVEL_ERROR
-#define IMG_CACHE_LOG_ERROR(...) rt_kprintf("[IMG CACHE] [ERROR] " __VA_ARGS__)
+#define IMG_CACHE_LOG_ERROR(...) printf("[IMG CACHE] [ERROR] " __VA_ARGS__)
 #else
 #define IMG_CACHE_LOG_ERROR(...)
 #endif
-
-extern void *sdram_malloc(rt_size_t size);
-extern void sdram_free(void *ptr);
-
-static const jl_res_bin_header_t *s_hdr = (const jl_res_bin_header_t *)RES_BIN_BASE_ADDR;
-static const uint8_t *s_bin_base = (const uint8_t *)RES_BIN_BASE_ADDR;
 
 static img_cache_entry_t s_img_cache[IMG_CACHE_COUNT];
 static bool s_img_cache_inited = false;
 
 static void img_cache_free_entry(img_cache_entry_t *entry)
 {
-    if (entry == RT_NULL) return;
-    if (entry->bitmap != RT_NULL) {
-        sdram_free(entry->bitmap);
+    if (entry == NULL) return;
+    if (entry->bitmap != NULL) {
+        lv_free(entry->bitmap);
     }
     memset(entry, 0, sizeof(*entry));
 }
@@ -85,7 +77,7 @@ static void convert_argb8888_to_lvgl_bgra(uint8_t *img_p, uint32_t px_cnt)
 
 static bool img_cache_decode_png_to_sdram(uint32_t res_index, img_cache_entry_t *entry)
 {
-    if (res_index >= JL_RESOURCE_COUNT || entry == RT_NULL) return false;
+    if (res_index >= g_res_hdr->count || entry == NULL) return false;
     const jl_resource_info_t *res = &g_jl_resources[res_index];
     if (res->format != 2u || res->width == 0u || res->height == 0u) {
         IMG_CACHE_LOG_INFO("skip index=%u id=%u format=%u size=%ux%u src=%s\n",
@@ -98,21 +90,21 @@ static bool img_cache_decode_png_to_sdram(uint32_t res_index, img_cache_entry_t 
         return false;
     }
 
-    const uint8_t *png_src_ptr = s_bin_base + s_hdr->data_offset + res->offset;
+    const uint8_t *png_src_ptr = g_res_base + g_res_hdr->data_offset + res->offset;
     const uint32_t png_src_len = res->size;
 
     unsigned png_width = 0;
     unsigned png_height = 0;
-    lv_draw_buf_t *decoded = RT_NULL;
+    lv_draw_buf_t *decoded = NULL;
     unsigned error = lodepng_decode32((unsigned char **)&decoded, &png_width, &png_height, png_src_ptr, png_src_len);
-    if (error || decoded == RT_NULL || decoded->data == RT_NULL) {
+    if (error || decoded == NULL || decoded->data == NULL) {
         IMG_CACHE_LOG_ERROR("decode failed index=%u id=%u error=%u %s src=%s\n",
                    (unsigned int)res_index,
                    (unsigned int)res->id,
                    error,
                    lodepng_error_text(error),
                    res->source_path ? res->source_path : "(null)");
-        if (decoded != RT_NULL) lv_draw_buf_destroy(decoded);
+        if (decoded != NULL) lv_draw_buf_destroy(decoded);
         return false;
     }
 
@@ -129,8 +121,8 @@ static bool img_cache_decode_png_to_sdram(uint32_t res_index, img_cache_entry_t 
 
     const uint32_t stride = png_width * 4u;
     const uint32_t data_size = stride * png_height;
-    uint8_t *bitmap = (uint8_t *)sdram_malloc(data_size);
-    if (bitmap == RT_NULL) {
+    uint8_t *bitmap = (uint8_t *)lv_malloc(data_size);
+    if (bitmap == NULL) {
         IMG_CACHE_LOG_ERROR("sdram alloc failed index=%u id=%u size=%u src=%s\n",
                    (unsigned int)res_index,
                    (unsigned int)res->id,
@@ -140,9 +132,9 @@ static bool img_cache_decode_png_to_sdram(uint32_t res_index, img_cache_entry_t 
         return false;
     }
 
-    rt_memset(bitmap, 0, data_size);
+    memset(bitmap, 0, data_size);
     for (uint32_t y = 0; y < png_height; y++) {
-        rt_memcpy(bitmap + y * stride,
+        memcpy(bitmap + y * stride,
                (uint8_t *)decoded->data + y * decoded->header.stride,
                png_width * 4u);
     }
@@ -157,7 +149,7 @@ static bool img_cache_decode_png_to_sdram(uint32_t res_index, img_cache_entry_t 
     entry->data_size = data_size;
     entry->cf = LV_COLOR_FORMAT_ARGB8888;
     entry->bitmap = bitmap;
-    rt_memset(&entry->draw_buf, 0, sizeof(entry->draw_buf));
+    memset(&entry->draw_buf, 0, sizeof(entry->draw_buf));
     entry->draw_buf.header.magic = LV_IMAGE_HEADER_MAGIC;
     entry->draw_buf.header.cf = entry->cf;
     entry->draw_buf.header.w = entry->width;
@@ -187,7 +179,7 @@ static bool img_cache_decode_png_to_sdram(uint32_t res_index, img_cache_entry_t 
 int img_cache_init(void)
 {
     if (s_img_cache_inited) return 0;
-    rt_memset(s_img_cache, 0, sizeof(s_img_cache));
+    memset(s_img_cache, 0, sizeof(s_img_cache));
 
     uint32_t ok_count = 0;
     for (uint32_t i = 0; i < IMG_CACHE_COUNT; i++) {
@@ -211,7 +203,7 @@ const img_cache_entry_t *img_cache_get_by_id(uint32_t id)
             return &s_img_cache[i];
         }
     }
-    return RT_NULL;
+    return NULL;
 }
 
 void img_cache_deinit(void)

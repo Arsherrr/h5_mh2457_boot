@@ -37,6 +37,24 @@ void io_init(void)
     
     GPS_ON_SET(0);
     GPS_EN_SET(0);
-    MCU_EN_SET(1);
+    MCU_EN_SET(0); /* H OFF, L ON. */
     PWR_CTR_SET(1);
+}
+
+void usb_disconnect(void)
+{
+    PeripheralEnable(PeripheralGPIOA, true); 
+    
+    GPIO_InitTypeDef GPIO_InitStructure;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+    
+    /* 拉低. */
+    GPIO_ResetBits(GPIOA, GPIO_Pin_12); 
+    
+    SystemDelay(300); 
 }

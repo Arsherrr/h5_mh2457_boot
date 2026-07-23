@@ -1,46 +1,41 @@
 
 #ifndef  _UPDATE_H_
 #define  _UPDATE_H_
+#include "memory.h"
+#include "flash.h"
 
 extern const char name[10];
 extern const char ver[10];
 extern u32 ticks_standby;
 
 /**************************************************************************************************************************
-0x8000000~0x8001000    系统保留 //4K
-
-0x8001000~0x81FE000    IAP //大约2M
-
-0x81FE000~0x81FF000    SN //4K
-
-0x81FF000~0x8200000    升级标志 //4K
-
-0x8200000~0x8400000    APP  //2M
-
-0x8500000~0x8500000    字库 //1M
-
-0x8500000~0x8600000    LOGO //1M
-
-0x8600000~0x8E00000    图片资源 //8M
-
-0x8E00000~0x9000000   系统参数 //2M
-这个分配是针对16M LASH来说的
+系统保留 [4K]
+BOOT [600K]
+APP [< 2M]
+系统参数 [4K] - 共享信息, SN 等
+LOGO [400K]
+文本 [14M]
+图片 [13M +]
+文件系统 [FLASH 末尾 1440K]
 **************************************************************************************************************************/
 
 //配置
-#define ROM_BASE                        (0x8001000)
-#define ADDR_APP                        (0x080B0000)
+#define ROM_BASE                        (__BOOT_BASE)
+#define ADDR_APP                        (__APP_BASE)
 //#define ADDR_SN                         (0x81FE000) //存放在AT425
-#define UPD_INFO_SIZE                   (1024)
-#define ADDR_UPD_INFO                   (0x08301000 - UPD_INFO_SIZE)
+#define UPD_INFO_SIZE                   (4096)
+#define ADDR_UPD_INFO                   (RES_LOGO_BASE - UPD_INFO_SIZE)
 #define PACK_SIZE_MCU                   (4096) //MCU每包数据大小
 #define PACK_SIZE_FLASH                 (4096) //FLASH每包数据大小
-#define FLASH_OFFSET_LOGO               (0x8400000) //包含FLASH和LOGO
-#define FLASH_OFFSET_FLASH              (0x8500000)
-#define SIZE_LOGO                       (FLASH_OFFSET_FLASH-FLASH_OFFSET_LOGO)
-#define SIZE_FLASH                      (24*1024*1024UL) //对于32M的flash来说是这样，16M的flash只有8M
-#define SIZE_MCU                        (2*1024*1024)
 
+#define FLASH_OFFSET_LOGO               (RES_LOGO_BASE) //包含FLASH和LOGO
+#define FLASH_OFFSET_FLASH              (RES_TEXT_BASE)
+
+#define SIZE_LOGO                       (RES_LOGO_BASE - FLASH_OFFSET_FLASH)
+#define SIZE_FLASH                      (FLASH_BASE_ADDR - FLASH_OFFSET_FLASH) /* 从文本地址到文件系统结束. */
+#define SIZE_MCU                        (ADDR_UPD_INFO - ADDR_APP)
+
+#define ADDR_APP_NAME                   (ADDR_APP+0x1000)
 #define ADDR_APP_VER                    (ADDR_APP+0x1000+0x10) //APP版本号所在地址
 #define ADDR_FLASH_VER                  (FLASH_OFFSET_FLASH+0x10) //FLASH版本号所在地址
 #define ADDR_APP_CRC                    (ADDR_APP+0x1000+0x30) //APP文件CRC所在地址
@@ -48,7 +43,7 @@ extern u32 ticks_standby;
 
 #define CRC_ATTRI_CODE                  (0x5C6B2023) //CRC特征码
 
-#define LEN_IAP_NAME                    (5) //产品名称的长度
+#define LEN_IAP_NAME                    (4) //产品名称的长度
 
 
 #if (PACK_SIZE_FLASH != 4096)
@@ -85,7 +80,7 @@ void update_handle(void);
 void update_init(void);
 void beep_on(void);
 void beep_off(void);
-void to_app(void);
+int to_app(void);
 
 #endif
 

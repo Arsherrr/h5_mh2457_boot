@@ -3,33 +3,116 @@ V1.0 (2025/05/09 16:00:00)
 1 初始版本
 ******************************************************************************/
 
+#include <stdlib.h>
 #include "include.h"
 #include "uart.h"
 #include "update.h"
 #include "crc.h"
 #include "tmr.h"
 #include "USBBSP.h"
+#include "at.h"
+#include "ui_ota.h"
+#include "memory.h"
+#include "text.h"
 
-const char name[10] __attribute__((section(".ARM.__at_0x8002000"))) = "H5 BOOT";
+const char name[10] __attribute__((section(".ARM.__at_0x8002000"))) = "KWH5";
 const char ver[10] __attribute__((section(".ARM.__at_0x8002010"))) = "1.0";
 const char hw[10] __attribute__((section(".ARM.__at_0x8002020"))) = "1.0";
 
+extern int language;
+
 vu8 backlight_flag;
 
-void disp_dbg_code(u8 code)
-{}
+void disp_dbg_code(s8 code)
+{
+    static char dbg_buff[100] = {0};
+
+    switch (code) {
+    case 0:
+        ui_set_notice(get_string(language, TEXT_OTA_STANDBY), COLOR_WHITE);
+        break;
+
+    case 1:
+        /* 正在更新 LOGO. */
+        ui_set_notice(get_string(language, TEXT_OTA_UPGRADE_LOGO), COLOR_WHITE);
+        break;
+    
+    case 2:
+        /* 正在更新文本. */
+        ui_set_notice(get_string(language, TEXT_OTA_UPGRADE_IMG), COLOR_WHITE);
+        break;
+
+    case 3:
+        /* 正在更新图片. */
+        ui_set_notice(get_string(language, TEXT_OTA_UPGRADE_TEXT), COLOR_WHITE);
+        break;
+
+#if 0
+    case -1:
+        /* 包序号不连续. */
+        ui_set_pct_color(COLOR_RED);
+        ui_set_notice("Discontinuous packet sequence.", COLOR_RED);
+        break;
+
+    case -2:
+        /* 无效 FLASH BIN 文件. */
+        ui_set_pct_color(COLOR_RED);
+        ui_set_notice("Invalid flash file.", COLOR_RED);
+        break;
+
+    case -3:
+        /* 无效 FLASH 类型 (上位机的问题). */
+        ui_set_pct_color(COLOR_RED);
+        ui_set_notice("Invalid file type.", COLOR_RED);
+        break;
+
+    case -6:
+    case -7:
+    case -8:
+        /* 文件大小超出限制. */
+        ui_set_pct_color(COLOR_RED);
+        ui_set_notice("Firmware size exceeds capacity.", COLOR_RED);
+        break;
+#endif
+
+    default:
+        sprintf(dbg_buff, "%s (%c%d)", get_string(language, TEXT_OTA_FAILED), 
+                                       (code < 0) ? 'E' : 'U', 
+                                       (code < 0) ? -code : code);
+        ui_set_pct_color(COLOR_RED);
+        ui_set_notice(dbg_buff, COLOR_RED);
+        break;
+    }
+}
+
 void disp_dbg_code2(u8 code)
-{}
+{
+    static char msg[100] = {0};
+    ui_set_pct_color(COLOR_RED);
+    sprintf(msg, "%s (E%d)", get_string(language, TEXT_OTA_FAILED), code);
+    ui_set_notice(msg, COLOR_RED);
+}
+
 void disp_success(void)
-{}
+{
+    ui_set_pct_visible(0);
+    ui_set_notice(get_string(language, TEXT_OTA_SUCCESS), COLOR_GREEN);
+}
+
 void disp_verifying(void)
-{}
+{
+    ui_set_pct_visible(0);
+    ui_set_notice("Verifying...", COLOR_WHITE);
+}
+
 void update_process_bar(u8 percent)
-{}
+{
+    process_update(percent);
+}
+
 void uart_send(u8* buf, u16 len)
 {
-    // uart_write(UART_ID_AT, buf, len);
-    /* 通过 USB 发送而不是串口. */
+    uart_write(UART_ID_AT, buf, len);
 }
 
 int q_uart_pop(u8 *byte)
@@ -59,6 +142,7 @@ static u8 tmp, step = 0;
 static s32 ret;
 static u16 cnt_r;
 static u32 addr;
+static u32 base_addr;
 static s32 pack_num_cur;
 static s32 pack_num_last;
 
@@ -188,6 +272,14 @@ void update_init(void)
     ticks_standby = ticks_sys;
 }
 
+static u8 at_sub_idx;           // 当前子包索引 (0~3)
+static u8 at_sub_total;         // 总子包数
+static u8 at_data_buf[PACK_SIZE_MCU]; // 保存当前 4KB 数据
+static u16 at_data_len;         // 实际数据长度（可能小于 4096）
+static u16 at_pack_num;         // 当前处理的包序号
+
+static s8 res_type = -1;
+
 /**
   ******************************************************************************
   * 函数 : int main(void)
@@ -198,6 +290,9 @@ void update_init(void)
   */
 void update_handle(void)
 {
+    u16 index;
+    int8_t ret8;
+
     switch (step)
     {
     case 0:
@@ -232,16 +327,15 @@ void update_handle(void)
         break;
 
     case 2: //长度
-        for (i = 0; i < 2; i++)
+        ret = VCPReadBytes(&tmp, 1);
+        if (1 == ret)
         {
-            ret = 0;
-            while (!ret)
+            buf_r[cnt_r++] = tmp;
+            if (cnt_r >= 4)
             {
-                ret = VCPReadBytes(&tmp, 1);
-                buf_r[cnt_r++] = tmp;
+                step = 3;
             }
         }
-        step = 3;
         break;
 
     case 3:
@@ -317,30 +411,98 @@ void update_handle(void)
         }
         break;
 
-    case 5: //写入到外部flash
+    case 5:
+        /**
+         * 写入到外部 flash
+         * @@[2] + LEN[2] + 0x0304[2] + TYPE[1] + SN[2] + DATA[N] + CRC[2] + \r\n[2]
+         * TYPE: 文件类型
+         *       1: MCU
+         *       2: 无 LOGO 其他 FLAH 文件
+         *       3: LOGO / LOGO + 其他 FLAH 文件
+         * SN: 包号
+         * DATA: 固件数据
+         * 
+         * 响应:
+         * $$[2] + LEN[2] + 0x4304[2] + STAT[1] + SN[2] + CRC[2] + \r\n[2]
+         * STAT: 状态
+         *       0: 成功
+         *       其他: 失败
+         * SN: 包号
+         */
+        ret8 = 0;
+        if (pack_num_cur == 0) {
+            /**
+             * LOGO 头: b'LOGO' (0X4F474F4C)
+             * TEXT 头: LANG_NUM[1] + FF[19]
+             * IMG  头: b'JRES' (0x5345524A)
+             */
+            uint32_t magic = *((uint32_t*)&buf_r[9]);
+            if (magic == 0X4F474F4C) {
+                /* LOGO. */
+                base_addr = RES_LOGO_BASE;
+                res_type  = 1;
+            } else if (magic == 0x5345524A) {
+                /* IMAGE. */
+                base_addr = RES_IMG_BASE;
+                res_type  = 2;
+            } else if (magic == 0x54584554) {
+                /* TEXT. */
+                base_addr = RES_TEXT_BASE;
+                res_type  = 3;
+            } else {
+                /* 无效文件. */
+                ret8 = -2;
+                disp_dbg_code(-2);
+                goto ACK_LOOP_FLASH;
+            }
+
+            if (ret8 == 0) {
+                disp_dbg_code(res_type);
+            }
+        } else {
+            uint32_t magic = *((uint32_t*)&buf_r[9]);
+            s8 _type = -1;
+            if (magic == 0X4F474F4C) {
+                /* LOGO. */
+                _type  = 1;
+            } else if (magic == 0x5345524A) {
+                /* IMAGE. */
+                _type  = 2;
+            } else if (magic == 0x54584554) {
+                /* TEXT. */
+                _type  = 3;
+            }
+
+            if (_type != -1 && _type != res_type) {
+                res_type = _type;
+                disp_dbg_code(res_type);
+            }
+        }
+
         if (pack_num_cur > (pack_num_last + 1)) //包不连续
         {
-            disp_dbg_code(1);
+            ret = -1;
+            disp_dbg_code(-1);
+            goto ACK_LOOP_FLASH;
         }
 
         if (pack_num_cur <= pack_num_last) //发送之前的包直接返回成功，否则会重复计算CRC
         {
             step = 0;
-            buf_t[0] = 0;
             goto ACK_LOOP_FLASH;
         }
 
-        if ((upd_type == UPD_LOGO) || (upd_type == UPD_LOGO_EXT_FLASH))
+        if ((upd_type == UPD_LOGO) ||
+            (upd_type == UPD_LOGO_EXT_FLASH) || 
+            (upd_type == UPD_EXT_FLASH))
         {
-            addr = FLASH_OFFSET_LOGO + pack_num_cur * pack_size;
-        }
-        else if (upd_type == UPD_EXT_FLASH)
-        {
-            addr = FLASH_OFFSET_FLASH + pack_num_cur * pack_size;
+            addr = base_addr + pack_num_cur * pack_size;
         }
         else
         {
-            disp_dbg_code(3);
+            ret8 = -3;
+            disp_dbg_code(ret8);
+            goto ACK_LOOP_FLASH;
         }
 
         if ((pack_num_cur + 1) == total_packs) //最后一包
@@ -365,46 +527,67 @@ void update_handle(void)
             if (memcmp((void*)addr, (void*)&buf_r[9], pack_size))
             {
                 step = 0;
-                buf_t[0] = 1;
+                ret8 = 1;
             }
             else
             {
                 step = 10;
-                buf_t[0] = 0;
                 pack_num_last = pack_num_cur;
             }
 	    }
         else
         {
             step = 10;
-            buf_t[0] = 0;
             pack_num_last = pack_num_cur;
         }
 ACK_LOOP_FLASH:
+        buf_t[0] = ret8;
         memcpy(&buf_t[1], (u8*)&pack_num_cur, 2);
         len = pack_buf_s(CMD_SEND_DATA, buf_t, 3);
         VCPSendBytes(buf_s, len);
         break;
 
-    case 6: //写入到内部rom
-        if (pack_num_cur == 0) //第0包数据是信息包
+    case 6: //
+        /**
+         * 写入到内部 ROM
+         * @@[2] + LEN[2] + 0x0304[2] + TYPE[1] + SN[2] + DATA[N] + CRC[2] + \r\n[2]
+         * TYPE: 文件类型
+         *       1: MCU
+         *       2: 无 LOGO 其他 FLAH 文件
+         *       3: LOGO / LOGO + 其他 FLAH 文件
+         * SN: 包号
+         * DATA: 固件数据
+         * 
+         * 响应:
+         * $$[2] + LEN[2] + 0x4304[2] + STAT[1] + SN[2] + CRC[2] + \r\n[2]
+         * STAT: 状态
+         *       0: 成功
+         *       其他: 失败
+         * SN: 包号
+         */
+        ret8 = 0;
+        if (pack_num_cur == 0)
         {
-            u8 i, xor;
+            /* 包头信息. */
+            u32 magic = 0;
+            u8 i, xor = 0;
 
-            for (i = 0, xor = 0; i < 9; i++)
+            magic = *((u32 *)&buf_r[9 + 0x3AC]);
+
+            for (i = 0, xor = 0; i < 12; i++)
             {
-                xor ^= buf_r[9+0x3B0+i];
+                xor ^= buf_r[9+0x3AC+i];
             }
 
-            if (xor == 0)
+            if (magic == 0x5A5A5A5A && xor == buf_r[9+0x3AC+12])
             {
                 memcpy((void*)&addr_at425, (void*)&buf_r[9+0x3B0], 4);
                 memcpy((void*)&size_at425, (void*)&buf_r[9+0x3B0+4], 4);
                 pack_cnt_at425 = size_at425 / pack_size;
                 if (size_at425 % pack_size) pack_cnt_at425++;
-                buf_t[0] = 1;
+                buf_t[0] = 1; /* 1: Internal Flash, 2: External Flash (not Logo), 3: Logo / Logo + External Flash. */
                 memcpy((void*)&buf_t[1], (void*)&size_at425, 4);
-                len = pack_buf_at425(CMD_SEND_FILE_SIZE, buf_t, 5);
+                len = pack_buf_at425(AT_CMD_SEND_FILE_SIZE, buf_t, 5);
                 uart_send(buf_s, len);
                 step = 101;
                 ticks_to = ticks_sys;
@@ -413,27 +596,32 @@ ACK_LOOP_FLASH:
             else
             {
                 step = 10;
-                buf_t[0] = 0;
                 pack_cnt_at425 = 0;
             }
         }
 
         if (pack_num_cur > (pack_num_last + 1))
         {
-            disp_dbg_code(4);
+            ret8 = -4;
+            disp_dbg_code(ret8);
+            goto ACK_LOOP_APP;
         }
 
         if (pack_num_cur <= pack_num_last) //发送之前的包直接返回成功，否则会重复计算CRC
         {
             step = 0;
-            buf_t[0] = 0;
             goto ACK_LOOP_APP;
         }
 
         if (pack_cnt_at425 && (pack_num_cur <= pack_cnt_at425))
         {
+            /* 转换 ID 后转发给 AT32. */
             step = 101;
-            uart_send(buf_r, cnt_r);
+            len = cnt_r - 10; /* @@ + 2len + 2cmd + 2crc + \r\n */
+            if (len == 0 || len > (pack_size + 3)) printf("[UPDATE] [ERROR] Invalid data len (%d)\n", len);
+
+            len = pack_buf_at425(AT_CMD_SEND_DATA, (u8 *)&buf_r[6], len);
+            uart_send(buf_s, len);
         }
         else
         {
@@ -464,23 +652,22 @@ ACK_LOOP_FLASH:
                 if (memcmp((void*)addr, (void*)&buf_r[9], pack_size))
                 {
                     step = 0;
-                    buf_t[0] = 1;
+                    ret8 = 1;
                 }
                 else
                 {
                     step = 10;
-                    buf_t[0] = 0;
                     pack_num_last = pack_num_cur;
                 }
             }
             else
             {
                 step = 10;
-                buf_t[0] = 0;
                 pack_num_last = pack_num_cur;
             }
         }
 ACK_LOOP_APP:
+        buf_t[0] = ret8;
         memcpy(&buf_t[1], (u8*)&pack_num_cur, 2);
         len = pack_buf_s(CMD_SEND_DATA, buf_t, 3);
         VCPSendBytes(buf_s, len);
@@ -586,24 +773,38 @@ ACK_LOOP_APP:
         VCPSendBytes(buf_s, len);
         break;
 
-    case 9: //处理文件大小
+    case 9:
+        /**
+         * 下发文件大小.
+         * @@[2] + LEN[2] + 0x4303[2] + TYPE[1] + SIZE[4] + CRC[2] + \r\n[2]
+         * TYPE: 文件类型
+         *       1: MCU
+         *       2: 无 LOGO 其他 FLAH 文件
+         *       3: LOGO / LOGO + 其他 FLAH 文件
+         * SIZE: 文件大小
+         * 
+         * 响应:
+         * $$[2] + LEN[2] + 0x0303[2] + STAT[1] + CRC[2] + \r\n[2]
+         * STAT: 状态
+         *       0: 成功
+         *       其他: 失败
+         */
+        ret8 = 0;
         step = 0;
         upd_type = UPD_NULL;
         pack_num_cur = 0;
         pack_num_last = -1;
-
-//        lv_label_set_text(guider_ui.screen_label_update_tip, "Updating...");
-//        lv_obj_set_style_text_color(guider_ui.screen_label_update_tip, lv_color_hex(0x00FF00), LV_PART_MAIN|LV_STATE_DEFAULT);
 
         if (buf_r[6] == 1)
         {
             upd_type = UPD_APP;
             pack_size = PACK_SIZE_MCU;
             memcpy(&file_size_app, &buf_r[7], 4);
-            total_packs = (file_size_app+pack_size-1) / pack_size;
+            total_packs = (file_size_app + pack_size - 1) / pack_size;
             if (file_size_app > SIZE_MCU)
             {
-                disp_dbg_code(6);
+                ret8 = -6;
+                disp_dbg_code(ret8);
             }
         }
         else if (buf_r[6] == 2) //flash(logo not include)
@@ -611,11 +812,12 @@ ACK_LOOP_APP:
             upd_type = UPD_EXT_FLASH;
             pack_size = PACK_SIZE_FLASH;
             memcpy(&file_size_flash, &buf_r[7], 4);
-            total_packs = (file_size_flash+pack_size-1) / pack_size;
+            total_packs = (file_size_flash + pack_size - 1) / pack_size;
 
             if (file_size_flash > SIZE_FLASH)
             {
-                disp_dbg_code(7);
+                ret8 = -7;
+                disp_dbg_code(ret8);
             }
         }
         else if (buf_r[6] == 3) //logo or logo+flash
@@ -625,9 +827,10 @@ ACK_LOOP_APP:
             if (file_size_flash > SIZE_LOGO)
             {
                 upd_type = UPD_LOGO_EXT_FLASH;
-                if (file_size_flash > (SIZE_FLASH+SIZE_LOGO))
+                if (file_size_flash > (SIZE_FLASH + SIZE_LOGO))
                 {
-                    disp_dbg_code(8);
+                    ret8 = -8;
+                    disp_dbg_code(ret8);
                 }
             }
             else
@@ -638,8 +841,20 @@ ACK_LOOP_APP:
             pack_size = PACK_SIZE_FLASH;
             total_packs = (file_size_flash+pack_size-1) / pack_size;
         }
-        buf_t[0] = 0;
-        memcpy((void*)buf_t, (u8*)&pack_num_cur, 1);
+        else
+        {
+            /* 无效文件类型. */
+            ret8 = -9;
+            disp_dbg_code(ret8);
+        }
+
+        /* 重置进度为 0. */
+        update_process_bar(0);
+        disp_dbg_code(0);
+        
+        /* 响应. */
+        buf_t[0] = ret8;
+        // memcpy((void*)buf_t, (u8*)&pack_num_cur, 1);
         len = pack_buf_s(CMD_SEND_FILE_SIZE, buf_t, 1);
         VCPSendBytes(buf_s, len);
         break;
@@ -686,9 +901,13 @@ ACK_LOOP_APP:
 
     case 12: //查询序列号
         step = 101;
-        len = pack_buf_at425(CMD_GET_SN, NULL, 0);
+        len = pack_buf_at425(AT_CMD_GET_SN, NULL, 0);
         uart_send(buf_s, len);
         break;
+
+/*
+ * *************************** AT32 升级通讯解析 ***************************
+ */
 
     case 101:
         cnt_r = 0;
@@ -704,7 +923,8 @@ ACK_LOOP_APP:
         {
             step = 0;
             buf_t[0] = 1;
-            disp_dbg_code2(101);
+            ret8 = 101;
+            disp_dbg_code2(ret8);
             goto ACK_LOOP_APP;
         }
         break;
@@ -722,7 +942,8 @@ ACK_LOOP_APP:
             {
                 step = 0;
                 buf_t[0] = 1;
-                disp_dbg_code2(102);
+                ret8 = 102;
+                disp_dbg_code2(ret8);
                 goto ACK_LOOP_APP;
             }
         }
@@ -730,7 +951,8 @@ ACK_LOOP_APP:
         {
             step = 0;
             buf_t[0] = 1;
-            disp_dbg_code2(103);
+            ret8 = 103;
+            disp_dbg_code2(ret8);
             goto ACK_LOOP_APP;
         }
         break;
@@ -746,7 +968,8 @@ ACK_LOOP_APP:
         {
             step = 0;
             buf_t[0] = 1;
-            disp_dbg_code2(104);
+            ret8 = 104;
+            disp_dbg_code2(ret8);
             goto ACK_LOOP_APP;
         }
         break;
@@ -762,7 +985,8 @@ ACK_LOOP_APP:
         {
             step = 0;
             buf_t[0] = 1;
-            disp_dbg_code2(105);
+            ret8 = 105;
+            disp_dbg_code2(ret8);
             goto ACK_LOOP_APP;
         }
         break;
@@ -786,7 +1010,8 @@ ACK_LOOP_APP:
                 {
                     step = 0;
                     buf_t[0] = 1;
-                    disp_dbg_code2(106);
+                    ret8 = 106;
+                    disp_dbg_code2(ret8);
                     goto ACK_LOOP_APP;
                 }
             }
@@ -795,7 +1020,8 @@ ACK_LOOP_APP:
             {
                 step = 0;
                 buf_t[0] = 1;
-                disp_dbg_code2(107);
+                ret8 = 107;
+                disp_dbg_code2(ret8);
                 goto ACK_LOOP_APP;
             }
 
@@ -803,7 +1029,8 @@ ACK_LOOP_APP:
             {
                 step = 0;
                 buf_t[0] = 1;
-                disp_dbg_code2(108);
+                ret8 = 108;
+                disp_dbg_code2(ret8);
                 goto ACK_LOOP_APP;
             }
         }
@@ -813,7 +1040,7 @@ ACK_LOOP_APP:
         step = 101;
         cmd_req = (buf_r[4] << 8) + buf_r[5];
         cmd_req -= CMD_OFFSET_FROM_AT425;
-        if (cmd_req == CMD_SEND_DATA) //下发升级数据包
+        if (cmd_req == AT_CMD_SEND_DATA) //下发升级数据包
         {
             if (!buf_r[6])
             {
@@ -837,7 +1064,7 @@ ACK_LOOP_APP:
         //    len = pack_buf_at425(CMD_SEND_FILE_SIZE, buf_r, 5);
         //    uart_send(buf_s, len);
         //}
-        else if (cmd_req == CMD_SEND_FILE_SIZE) //下发文件大小
+        else if (cmd_req == AT_CMD_SEND_FILE_SIZE) //下发文件大小
         {
             step = 10;
             buf_t[0] = 0;
@@ -845,7 +1072,7 @@ ACK_LOOP_APP:
             ticks_to = ticks_sys;
             goto ACK_LOOP_APP;
         }
-        else if (cmd_req == CMD_GET_SN)
+        else if (cmd_req == AT_CMD_GET_SN)
         {
             step = 0;
             memcpy((void*)buf_t, (void*)&buf_r[6], 4);
@@ -861,4 +1088,3 @@ ACK_LOOP_APP:
         break;
     }
 }
-

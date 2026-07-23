@@ -1,9 +1,10 @@
 #ifndef __FLASH_H
 #define __FLASH_H
 #include "mh2457.h"
+#include "memory.h"
 
-#define FLASH_SIZE                  (1440*1024UL) /* 4K 对齐. */
-#define FLASH_BASE_ADDR             (0xA000000UL - FLASH_SIZE)
+#define FLASH_SIZE                  (1020*1024UL) /* 4K 对齐. */
+#define FLASH_BASE_ADDR             (RES_FS_BASE)
 #define FLASH_SECTOR_SIZE           (4096)
 
 
@@ -20,6 +21,11 @@
 *********************************************************************************************************
 */
 u8 flash_write_buf(u8* buf, u32 addr, u16 len);
+
+int flash_init( void );
+int flash_read( long addr, uint8_t* buf, size_t size );
+int flash_write( long addr, const uint8_t* buf, size_t size );
+int flash_erase( long addr, size_t size );
 
 #endif
 

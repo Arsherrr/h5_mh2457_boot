@@ -29,7 +29,7 @@
 
 extern USBDeviceStruct USBDevice;
 
-extern void USBSetup(void);
+extern void USBSetup(unsigned int type);
 extern void USBLoop(void);
 extern void USBStop(void);
 

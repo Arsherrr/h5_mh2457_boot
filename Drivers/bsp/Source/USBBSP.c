@@ -1,5 +1,6 @@
 #include "USBBSP.h"
 
+static unsigned int usb_type = USE_COMPONENT_USBVCP;
 static wchar_t USBUniqueSN[16] = {0};
 
 #define SOC_MAX_SN_LENGTH 16
@@ -13,25 +14,30 @@ void USBGenerateUniqueSN(wchar_t* uniqueSN, uint32_t maxLength)
 
     uint8_t snIndex = 0;
 
-#if USE_COMPONENT_USBMSD
-    usbSN[snIndex++] = 'M';
-#endif // USE_COMPONENT_USBMSD
-#if USE_COMPONENT_USBVCP
-    usbSN[snIndex++] = 'V';
-#endif // USE_COMPONENT_USBVCP
-#if USE_COMPONENT_USBHID
-    usbSN[snIndex++] = 'D';
-#endif // USE_COMPONENT_USBHID
-#if USE_COMPONENT_USBCCID
-    usbSN[snIndex++] = 'C';
-#endif // USE_COMPONENT_USBCCID
-#if USE_COMPONENT_USBVENDOR
-    usbSN[snIndex++] = 'N';
-#endif // USE_COMPONENT_USBVENDOR
-#if USE_COMPONENT_USBUVC
-    usbSN[snIndex++] = 'U';
-#endif // USE_COMPONENT_USBUVC
-    usbSN[snIndex++] = '-';
+    if (usb_type == USE_COMPONENT_USBMSD) {
+        #if USE_COMPONENT_USBMSD
+            usbSN[snIndex++] = 'M';
+        #endif // USE_COMPONENT_USBMSD
+    } else if (usb_type == USE_COMPONENT_USBVCP) {
+        
+        #if USE_COMPONENT_USBVCP
+            usbSN[snIndex++] = 'V';
+        #endif // USE_COMPONENT_USBVCP
+    } else {
+        #if USE_COMPONENT_USBHID
+            usbSN[snIndex++] = 'D';
+        #endif // USE_COMPONENT_USBHID
+        #if USE_COMPONENT_USBCCID
+            usbSN[snIndex++] = 'C';
+        #endif // USE_COMPONENT_USBCCID
+        #if USE_COMPONENT_USBVENDOR
+            usbSN[snIndex++] = 'N';
+        #endif // USE_COMPONENT_USBVENDOR
+        #if USE_COMPONENT_USBUVC
+            usbSN[snIndex++] = 'U';
+        #endif // USE_COMPONENT_USBUVC
+            usbSN[snIndex++] = '-';
+    }
 
     uint8_t socSN[SOC_MAX_SN_LENGTH] = {0};
 
@@ -68,8 +74,11 @@ void USBInterruptSetup(void)
     NVIC_DisableIRQ(USB_ZOFFY1_IRQ);
 }
 
-void USBSetup(void)
+void USBSetup(unsigned int type)
 {
+    /* 设置 USB 配置类型. */
+    usb_type = type;
+
     USBInterruptSetup();
 
     // ******** USB Core 1 Setup ********
@@ -98,23 +107,25 @@ void USBSetup(void)
     device->SerialNumber = USBUniqueSN;
 
     // Configure USBDevice's VendorID, ProductID and ProductRelease
-    device->Init(device, hal, 0x0D28, 0xCCDD, 0x0001);
+    device->Init(device, hal, 0x28E9, 0x018A, 0x0001);
 
-#if USE_COMPONENT_USBMSD
-    MSDSetup(device);
-#endif // USE_COMPONENT_USBMSD
-
-#if USE_COMPONENT_USBHID
-    HIDSetup(device);
-#endif // USE_COMPONENT_USBHID
-
-#if USE_COMPONENT_USBVENDOR
-    VendorSetup(device);
-#endif // USE_COMPONENT_USBVENDOR
-
-#if USE_COMPONENT_USBVCP
-    VCPSetup(device);
-#endif // USE_COMPONENT_USBVCP
+    if (usb_type == USE_COMPONENT_USBMSD) {
+        #if USE_COMPONENT_USBMSD
+            MSDSetup(device);
+        #endif // USE_COMPONENT_USBMSD
+    } else if (usb_type == USE_COMPONENT_USBVCP) {
+        #if USE_COMPONENT_USBVCP
+            VCPSetup(device);
+        #endif // USE_COMPONENT_USBVCP
+    } else {
+        #if USE_COMPONENT_USBVENDOR
+            VendorSetup(device);
+        #endif // USE_COMPONENT_USBVENDOR
+        
+        #if USE_COMPONENT_USBHID
+            HIDSetup(device);
+        #endif // USE_COMPONENT_USBHID
+    }
 
     // USBDevice1 Start
     device->Start(device);

@@ -1,12 +1,12 @@
 #include "LVGLPort.h"
-#if USE_RTOS_RTTHREAD
-#include "rtthread.h"
-#endif
-#include <stdio.h>
 
 // Configs
 #ifndef CONFIG_LVGL_DISPLAY_ORIENTATION
 #define CONFIG_LVGL_DISPLAY_ORIENTATION 0
+#endif
+
+#ifndef CONFIG_LVGL_GAU_CACHE_SIZE
+#define CONFIG_LVGL_GAU_CACHE_SIZE (900 * 1024)
 #endif
 
 #ifndef CONFIG_LVGL_PORT_SUPPORT_ROTATION
@@ -28,24 +28,25 @@
 
 // Lvgl Buffer
 static lv_color_t* lv_buf  = (lv_color_t*)0x60000000;
-static uint32_t    lv_size = 854 * 480 * 6;
+static uint32_t    lv_size = 800 * 1280 * 6;
 
 // Display Flush
-#if USE_RTOS_RTTHREAD
-#define enterCritial() rt_enter_critical()
-#define exitCritial()  rt_exit_critical()
-#define giveDisplay() rt_sem_release(displayFlushSemaphore);
+#if USE_RTOS_FREERTOS
+#define enterCritial() taskENTER_CRITICAL()
+#define exitCritial()  taskEXIT_CRITICAL()
 
-static rt_sem_t displayFlushSemaphore = RT_NULL;
+static SemaphoreHandle_t displayFlushSemaphore;
 
 static void displayLayerBufferChangeEvent(DisplayLayerStruct* layer) {
-    giveDisplay();
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xSemaphoreGiveFromISR(displayFlushSemaphore, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
-static inline bool takeDisplay(void)
-{
-    return rt_sem_take(displayFlushSemaphore,
-                       rt_tick_from_millisecond(CONFIG_LVGL_PORT_MAX_FLUSH_TIMEOUT)) == RT_EOK;
+#define giveDisplay() xSemaphoreGive(displayFlushSemaphore);
+
+static inline bool takeDisplay(void) {
+    return xSemaphoreTake(displayFlushSemaphore, pdMS_TO_TICKS(CONFIG_LVGL_PORT_MAX_FLUSH_TIMEOUT)) == pdPASS;
 }
 
 #else
@@ -78,9 +79,8 @@ static void displayLayerBufferChangeEvent(DisplayLayerStruct* layer) {
 #if USE_COMPONENT_GAUPORT
 static GAUPortStruct* GAUPort;
 
-#if USE_RTOS_RTTHREAD
-#define createGAUPort() rt_malloc(sizeof(GAUPortStruct))
-
+#if USE_RTOS_FREERTOS
+#define createGAUPort() pvPortMalloc(sizeof(GAUPortStruct))
 #else
 static GAUPortStruct lvglGAUPort;
 
@@ -103,53 +103,27 @@ static GAUColorEnum GAUColorFromBPP(uint8_t colorBPP) {
 }
 
 #if CONFIG_LVGL_GAU_CACHE_SIZE
-#define DISP_WIDTH               ( 854 ) /* 屏宽. */
-#define DISP_HEIGHT              ( 480 ) /* 屏高. */
-#define LVGL_BUFFER_LINES        ( 80  ) /* 缓存行数. */
-#define COLOR_DEPTH_BYTE         ( (LV_COLOR_DEPTH + 7) >> 3 )
-#define LVGL_LINE_STRIDE_BYTES   (((DISP_WIDTH * COLOR_DEPTH_BYTE) + 3) & ~3) /* 保证 4 字节对齐. */
 
-#define GAU_CACHE_BLOCK_SIZE     (LVGL_LINE_STRIDE_BYTES * LVGL_BUFFER_LINES) /* 单个 Block 的总字节数. */
-#define GAU_CACHE_BLOCK_COUNT    (2 + CONFIG_LVGL_PORT_SUPPORT_ROTATION)
-__attribute__((aligned(4))) static lv_color_t gauCacheBlock[GAU_CACHE_BLOCK_COUNT][((GAU_CACHE_BLOCK_SIZE / sizeof(lv_color_t)) + 3) & ~3];
+#define GAU_CACHE_BLOCK_COUNT (2 + CONFIG_LVGL_PORT_SUPPORT_ROTATION)
+#define GAU_CACHE_BLOCK_SIZE  (CONFIG_LVGL_GAU_CACHE_SIZE / GAU_CACHE_BLOCK_COUNT)
 
-#if USE_RTOS_RTTHREAD
-static rt_mq_t gauCacheBlockQueue = RT_NULL;
-#define createCacheBlocks() \
-    gauCacheBlockQueue = rt_mq_create("gau_blk", sizeof(void*), GAU_CACHE_BLOCK_COUNT, RT_IPC_FLAG_PRIO)
+static uint32_t gauCacheBlock[GAU_CACHE_BLOCK_COUNT][GAU_CACHE_BLOCK_SIZE >> 2];
 
-static void* takeCacheBlock(void)
-{
+#if USE_RTOS_FREERTOS
+static QueueHandle_t gauCacheBlockQueue;
+#define createCacheBlocks() gauCacheBlockQueue = xQueueCreate(GAU_CACHE_BLOCK_COUNT, sizeof(void*))
+
+static void* takeCacheBlock(void) {
     void* cacheBlock;
-
-    if (gauCacheBlockQueue == RT_NULL) {
-        printf("[cache] gauCacheBlockQueue is NULL\n");
-        return NULL;
-    }
-
-    /* RT-Thread 的 rt_mq_recv 返回 RT_EOK 表示成功 */
-    if (rt_mq_recv(gauCacheBlockQueue,
-                   &cacheBlock,
-                   sizeof(void*),
-                   RT_WAITING_FOREVER) <= 0)
-    {
-        printf("[cache] take cache block failed\n");
-    }
+    if (xQueueReceive(gauCacheBlockQueue, &cacheBlock, portMAX_DELAY) != pdPASS)
+        __BKPT();
 
     return cacheBlock;
 }
 
-static void giveCacheBlock(void* cacheBlock)
-{
-    if (cacheBlock == NULL) return;
-
-    /* RT-Thread 的 rt_mq_send 返回 RT_EOK 表示成功 */
-    if (rt_mq_send(gauCacheBlockQueue,
-                   &cacheBlock,
-                   sizeof(void*)) != RT_EOK)
-    {
-        printf("[cache] give cache block failed\n");
-    }
+static void giveCacheBlock(void* cacheBlock) {
+    if (xQueueSend(gauCacheBlockQueue, &cacheBlock, 0) != pdPASS)
+        __BKPT();
 }
 
 #else
@@ -194,6 +168,26 @@ static void giveCacheEvent(GAUTaskStruct* task) {
         x ^= y;    \
     }
 
+static uint32_t s_rot = LV_DISPLAY_ROTATION_0;
+
+/**
+ * @brief 使用 dma2d 进行旋转.
+ * @param value: 旋转角度.
+ *        LV_DISPLAY_ROTATION_0
+ *        LV_DISPLAY_ROTATION_90
+ *        LV_DISPLAY_ROTATION_180
+ *        LV_DISPLAY_ROTATION_270
+ */
+void display_set_rotation(uint32_t value)
+{
+    s_rot = value;
+}
+
+uint32_t display_get_rotation(void)
+{
+    return s_rot;
+}
+
 static void lvglSyncBuffer(lv_display_t* disp, bool isSyncArea, void* source, void* target, const lv_area_t* area) {
     GAUColorEnum color = GAUColorFromBPP(LV_COLOR_DEPTH);
 
@@ -207,9 +201,9 @@ static void lvglSyncBuffer(lv_display_t* disp, bool isSyncArea, void* source, vo
 
     uint16_t rotatedX1 = area->x1, rotatedY1 = area->y1;
     uint16_t rotatedWidth = width, rotatedHeight = height;
-    switch (lv_display_get_rotation(disp)) {
+    
+    switch (s_rot) {
         case LV_DISPLAY_ROTATION_0:
-            /* lvgl 本身就是横屏，无旋转的情况下直接旋转 270 对应硬件的竖屏显示. */
             rotatedX1     = area->y1;
             rotatedY1     = drawWidth - (area->x2 + 1);
             rotatedWidth  = height;
@@ -226,11 +220,12 @@ static void lvglSyncBuffer(lv_display_t* disp, bool isSyncArea, void* source, vo
             SWAP(drawWidth, drawHeight);
             break;
         case LV_DISPLAY_ROTATION_180:
-            rotatedX1     = drawWidth - (area->x2 + 1);
-            rotatedY1     = drawHeight - (area->y2 + 1);
-            rotatedWidth  = width;
-            rotatedHeight = height;
-            gauRotation   = GAURotation180;
+            rotatedX1     = drawHeight - (area->y2 + 1);
+            rotatedY1     = area->x1;
+            rotatedWidth  = height;
+            rotatedHeight = width;
+            gauRotation   = GAURotation90;
+            SWAP(drawWidth, drawHeight);
             break;
         case LV_DISPLAY_ROTATION_270:
             rotatedX1     = drawHeight - (area->y2 + 1);
@@ -253,24 +248,13 @@ static void lvglSyncBuffer(lv_display_t* disp, bool isSyncArea, void* source, vo
         if (gauRotation) {
 #if CONFIG_LVGL_PORT_SUPPORT_ROTATION
             gauSource = takeCacheBlock();
-            if (GAUPort->AddCopyTask(GAUPort, gauRotation, source, color, 0, gauSource, color, 0, width, height, giveCacheEvent, source) == false) {
-                printf("[GAU] [WARN] Create rotation task failed.\n");
-                /* 释放资源. */
-                giveCacheBlock(source);
-                giveCacheBlock(gauSource);
-                return;
-            }
+            GAUPort->AddCopyTask(GAUPort, gauRotation, source, color, 0, gauSource, color, 0, width, height, giveCacheEvent, source);
 #else
             LV_LOG_ERROR("Lvgl port with rotation support should enable `CONFIG_LVGL_PORT_SUPPORT_ROTATION`");
 #endif
         }
 
-        if (GAUPort->AddCopyTask(GAUPort, GAURotation0, gauSource, color, 0, target, color, offset, rotatedWidth, rotatedHeight, giveCacheEvent, gauSource) == false) {
-            printf("[GAU] [WARN] Create copy task failed.\n");
-            /* 释放资源. */
-            giveCacheBlock(gauSource);
-            return;
-        }
+        GAUPort->AddCopyTask(GAUPort, GAURotation0, gauSource, color, 0, target, color, offset, rotatedWidth, rotatedHeight, giveCacheEvent, gauSource);
     }
     else {
         source = source + (rotatedX1 + rotatedY1 * drawWidth) * (color & 0x0F);
@@ -450,12 +434,10 @@ static void lvglDisplayFlushEvent(lv_disp_drv_t* disp_drv, const lv_area_t* area
 
 #if LVGL_VERSION_MAJOR == 9
 
-#if USE_RTOS_RTTHREAD
-static uint32_t lvglGetTick(void)
-{
-    return rt_tick_get_millisecond();
+#if USE_RTOS_FREERTOS
+static uint32_t lvglGetTick() {
+    return pdTICKS_TO_MS(xTaskGetTickCount());
 }
-
 #endif
 
 #if USE_COMPONENT_GAUPORT
@@ -484,7 +466,7 @@ void __WRAP(lv_draw_buf_copy)(lv_draw_buf_t* dest, const lv_area_t* dest_area, c
 #endif
 
 static void lvglDisplaySetup(DisplayStruct* displayPort, uint16_t layerWidth, uint16_t layerHeight, void* buf0, void* buf1) {
-#if USE_RTOS_RTTHREAD
+#if USE_RTOS_FREERTOS
     // set get tick call back function
     lv_tick_set_cb(lvglGetTick);
 #endif
@@ -492,7 +474,7 @@ static void lvglDisplaySetup(DisplayStruct* displayPort, uint16_t layerWidth, ui
     lv_display_t* disp = lv_display_create(layerWidth, layerHeight);
     lv_display_set_flush_cb(disp, lvglDisplayFlushEvent);
 #if CONFIG_LVGL_GAU_CACHE_SIZE
-    lv_display_set_buffers(disp, takeCacheBlock(), NULL, sizeof(gauCacheBlock[0]), LV_DISPLAY_RENDER_MODE_PARTIAL);
+    lv_display_set_buffers(disp, takeCacheBlock(), NULL, GAU_CACHE_BLOCK_SIZE, LV_DISPLAY_RENDER_MODE_PARTIAL);
 #else
     lv_display_set_buffers(disp, buf0, buf1, layerWidth * layerHeight * (LV_COLOR_DEPTH >> 3), LV_DISPLAY_RENDER_MODE_DIRECT);
 #endif
@@ -537,6 +519,16 @@ static void lvglDisplaySetup(DisplayStruct* displayPort, uint16_t layerWidth, ui
 }
 #endif
 
+bool DPIDisplayConfig(DisplayStruct* display) {
+#if LV_COLOR_DEPTH >= 24
+    display->Color = DisplayColorRGB888;
+#elif LV_COLOR_DEPTH == 16
+    display->Color = DisplayColorRGB565;
+#endif
+
+    return true;
+}
+
 bool DSIDisplayConfig(DisplayStruct* display) {
 #if LV_COLOR_DEPTH >= 24
     if (display->Color != DisplayColorRGB888) {
@@ -555,22 +547,25 @@ bool DSIDisplayConfig(DisplayStruct* display) {
     return true;
 }
 
-void log_cb(lv_log_level_t level, const char * buf)
-{
+bool DBIDisplayConfig(DisplayStruct* display) {
+#if LV_COLOR_DEPTH >= 24
+    display->Color = DisplayColorRGB888;
+#elif LV_COLOR_DEPTH == 16
+    display->Color = DisplayColorRGB565;
+#endif
 
-    (void)(level);
-    printf("[LVGL] %s\n", buf);
+    return true;
 }
 
-void LVGLSetup(void)
-{    
+void LVGLSetup(void) {
+
 #if USE_COMPONENT_GAUPORT
     gauPortSetup();
 #endif
 
     // Display Setup
-#if USE_RTOS_RTTHREAD
-    displayFlushSemaphore = rt_sem_create("lvgl_flush", 0, RT_IPC_FLAG_PRIO);
+#if USE_RTOS_FREERTOS
+    displayFlushSemaphore = xSemaphoreCreateBinary();
 #endif
     giveDisplay();
 
@@ -602,33 +597,21 @@ void LVGLSetup(void)
 
         buf0 = displayLayer->Buffer[0].Pointer;
         buf1 = displayPort->RefreshMode == DisplayRefreshAdaptive ? NULL : displayLayer->Buffer[1].Pointer;
-
         SWAP(layerWidth, layerHeight);
     }
 
     lv_init();
 
 #if LV_MEM_POOL_EXPAND_SIZE
-    void *lv_mem_ex = sdram_malloc(LV_MEM_POOL_EXPAND_SIZE);
-    if (lv_mem_ex) {
-        // Add expand heap from offset 1MB of SDRAM
-        lv_tlsf_add_pool(LV_GLOBAL_DEFAULT()->tlsf_state.tlsf, lv_mem_ex, LV_MEM_POOL_EXPAND_SIZE);
-    } else {
-        printf("[LVGL] No free memory for lvgl expand heap.\n");
-    }
+    // Add expand heap from offset 4MB of SDRAM
+    lv_tlsf_add_pool(LV_GLOBAL_DEFAULT()->tlsf_state.tlsf, (void*)(0x60000000 + LV_BUF_SIZE), LV_MEM_POOL_EXPAND_SIZE);
 #endif
 
     lvglDisplaySetup(displayPort, layerWidth, layerHeight, buf0, buf1);
-
-    // lv_display_set_rotation(NULL, LV_DISPLAY_ROTATION_270);
 
     // Start display port
     if (displayPort) {
         DisplayTestPattern(displayPort);
         displayPort->Start(displayPort, true);
     }
-
-#if LV_USE_LOG
-    lv_log_register_print_cb(log_cb);
-#endif
 }

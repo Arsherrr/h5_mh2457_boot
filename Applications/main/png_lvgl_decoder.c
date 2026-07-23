@@ -1,16 +1,21 @@
 #include "res_fs.h"
-#include "img_cache.h"
 #include "lvgl.h"
 #include "../../../Libraries/OSS/lvgl/9.2.2/src/draw/lv_image_decoder_private.h"
 #include "../../../Libraries/OSS/lvgl/9.2.2/src/libs/lodepng/lodepng.h"
-#include "rtthread.h"
+#include "lvgl.h"
 #include <string.h>
 #include <stdint.h>
+#include <stdio.h>
 #include "log.h"
 
-#define RES_BIN_BASE_ADDR 0x0910B600UL
+/* 是否使用 PNG 缓存. */
+#define USE_PNG_CACHE  (0)
 
-/* lodepng_decode32() in LVGL's lodepng.c allocates with lv_malloc(). */
+#if USE_PNG_CACHE
+#include "img_cache.h"
+#endif
+
+/* lodepng_decode32() in LVGL's lodepng.c allocates with NULL(). */
 #define lodepng_free lv_free
 
 /* [ 配置 ] 是否开启 LOG 日志. */
@@ -32,36 +37,25 @@
 #endif
 
 #if _PNG_LOG_LEVEL <= LOG_LEVEL_TRACE
-#define PNG_LOG_TRACE(...) rt_kprintf("[PNG DEC] " __VA_ARGS__)
+#define PNG_LOG_TRACE(...) printf("[PNG DEC] " __VA_ARGS__)
 #else
 #define PNG_LOG_TRACE(...)
 #endif
 #if _PNG_LOG_LEVEL <= LOG_LEVEL_INFO
-#define PNG_LOG_INFO(...) rt_kprintf("[PNG DEC] " __VA_ARGS__)
+#define PNG_LOG_INFO(...) printf("[PNG DEC] " __VA_ARGS__)
 #else
 #define PNG_LOG_INFO(...)
 #endif
 #if _PNG_LOG_LEVEL <= LOG_LEVEL_WARN
-#define PNG_LOG_WARN(...) rt_kprintf("[PNG DEC] [WARN] " __VA_ARGS__)
+#define PNG_LOG_WARN(...) printf("[PNG DEC] [WARN] " __VA_ARGS__)
 #else
 #define PNG_LOG_WARN(...)
 #endif
 #if _PNG_LOG_LEVEL <= LOG_LEVEL_ERROR
-#define PNG_LOG_ERROR(...) rt_kprintf("[PNG DEC] [ERROR] " __VA_ARGS__)
+#define PNG_LOG_ERROR(...) printf("[PNG DEC] [ERROR] " __VA_ARGS__)
 #else
 #define PNG_LOG_ERROR(...)
 #endif
-
-//typedef struct {
-//    uint32_t magic;
-//    uint16_t version;
-//    uint16_t count;
-//    uint32_t header_size;
-//    uint32_t data_offset;
-//} __attribute__((packed)) jl_res_bin_header_t;
-
-static const jl_res_bin_header_t *s_hdr = (const jl_res_bin_header_t *)RES_BIN_BASE_ADDR;
-static const uint8_t *s_bin_base = (const uint8_t *)RES_BIN_BASE_ADDR;
 
 typedef struct {
     const jl_resource_info_t *res;
@@ -69,19 +63,16 @@ typedef struct {
 } png_session_t;
 
 /* 单张 PNG 的动态缓存, 首次解码后复用. */
-static const jl_resource_info_t *s_cached_res = RT_NULL;
-static lv_draw_buf_t *s_cached_image = RT_NULL;
-static uint8_t *s_cached_raw_buf = RT_NULL;
+static const jl_resource_info_t *s_cached_res = NULL;
+static lv_draw_buf_t *s_cached_image = NULL;
+static uint8_t *s_cached_raw_buf = NULL;
 static uint8_t s_cache_in_use = 0;
 static uint8_t s_cached_from_img_cache = 0;
 
-extern void *sdram_malloc(rt_size_t size);
-extern void sdram_free(void *ptr);
-
 static void free_png_session(png_session_t *session)
 {
-    if (session == RT_NULL) return;
-    rt_free(session);
+    if (session == NULL) return;
+    lv_free(session);
 }
 
 static void free_cached_png(void)
@@ -89,9 +80,9 @@ static void free_cached_png(void)
     if (s_cached_image && !s_cached_from_img_cache) {
         lv_draw_buf_destroy(s_cached_image);
     }
-    s_cached_image = RT_NULL;
-    s_cached_raw_buf = RT_NULL;
-    s_cached_res = RT_NULL;
+    s_cached_image = NULL;
+    s_cached_raw_buf = NULL;
+    s_cached_res = NULL;
     s_cached_from_img_cache = 0;
 }
 
@@ -124,13 +115,13 @@ static uint32_t png_read_be32(const uint8_t *p)
 static lv_result_t decoder_info_cb(lv_image_decoder_t *decoder, lv_image_decoder_dsc_t *dsc, lv_image_header_t *header)
 {
     LV_UNUSED(decoder);
-    if (dsc == RT_NULL || dsc->src == RT_NULL || header == RT_NULL) return LV_RESULT_INVALID;
+    if (dsc == NULL || dsc->src == NULL || header == NULL) return LV_RESULT_INVALID;
 
     const char *path = (const char *)dsc->src;
     const jl_resource_info_t *res = find_res_by_path(path);
-    if (res == RT_NULL || res->format != 2) return LV_RESULT_INVALID;
+    if (res == NULL || res->format != 2) return LV_RESULT_INVALID;
 
-    const uint8_t *png_src_ptr = s_bin_base + s_hdr->data_offset + res->offset;
+    const uint8_t *png_src_ptr = g_res_base + g_res_hdr->data_offset + res->offset;
     static const uint8_t png_magic[] = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
     if (res->size < 24u || memcmp(png_src_ptr, png_magic, sizeof(png_magic)) != 0) return LV_RESULT_INVALID;
 
@@ -158,11 +149,11 @@ static lv_result_t decoder_info_cb(lv_image_decoder_t *decoder, lv_image_decoder
 static lv_result_t decoder_open_cb(lv_image_decoder_t *decoder, lv_image_decoder_dsc_t *dsc)
 {
     LV_UNUSED(decoder);
-    if (dsc == RT_NULL || dsc->src == RT_NULL) return LV_RESULT_INVALID;
+    if (dsc == NULL || dsc->src == NULL) return LV_RESULT_INVALID;
 
     const char *path = (const char *)dsc->src;
     const jl_resource_info_t *res = find_res_by_path(path);
-    if (res == RT_NULL || res->format != 2) return LV_RESULT_INVALID;
+    if (res == NULL || res->format != 2) return LV_RESULT_INVALID;
 
     PNG_LOG_INFO("open_cb: %s\n", path ? path : "(null)");
 
@@ -175,16 +166,17 @@ static lv_result_t decoder_open_cb(lv_image_decoder_t *decoder, lv_image_decoder
 
     free_cached_png();
 
-    png_session_t *session = (png_session_t *)rt_malloc(sizeof(png_session_t));
-    if (session == RT_NULL) {
+    png_session_t *session = (png_session_t *)lv_malloc(sizeof(png_session_t));
+    if (session == NULL) {
         s_cache_in_use = 0;
         return LV_RESULT_INVALID;
     }
     memset(session, 0, sizeof(*session));
     session->res = res;
 
+#if USE_PNG_CACHE
     const img_cache_entry_t *cache_entry = img_cache_get_by_id(res->id);
-    if (cache_entry != RT_NULL && cache_entry->bitmap != RT_NULL) {
+    if (cache_entry != NULL && cache_entry->bitmap != NULL) {
         session->from_img_cache = 1;
         s_cached_from_img_cache = 1;
         s_cached_image = (lv_draw_buf_t *)&cache_entry->draw_buf;
@@ -205,15 +197,16 @@ static lv_result_t decoder_open_cb(lv_image_decoder_t *decoder, lv_image_decoder
                    s_cached_raw_buf);
         return LV_RESULT_OK;
     }
+#endif
 
-    const uint8_t *png_src_ptr = s_bin_base + s_hdr->data_offset + res->offset;
+    const uint8_t *png_src_ptr = g_res_base + g_res_hdr->data_offset + res->offset;
     const uint32_t png_src_len = res->size;
 
     unsigned png_width = 0;
     unsigned png_height = 0;
-    lv_draw_buf_t *decoded = RT_NULL;
+    lv_draw_buf_t *decoded = NULL;
     unsigned error = lodepng_decode32((unsigned char **)&decoded, &png_width, &png_height, png_src_ptr, png_src_len);
-    if (error || decoded == RT_NULL) {
+    if (error || decoded == NULL) {
         PNG_LOG_ERROR("lodepng decode failed: %s error=%u %s\n",
                    path, error, lodepng_error_text(error));
         free_png_session(session);
@@ -252,7 +245,7 @@ static lv_result_t decoder_open_cb(lv_image_decoder_t *decoder, lv_image_decoder
 static void decoder_close_cb(lv_image_decoder_t *decoder, lv_image_decoder_dsc_t *dsc)
 {
     LV_UNUSED(decoder);
-    if (dsc == RT_NULL) return;
+    if (dsc == NULL) return;
 
     png_session_t *session = (png_session_t *)dsc->user_data;
     if (session) {
@@ -267,7 +260,7 @@ static void decoder_close_cb(lv_image_decoder_t *decoder, lv_image_decoder_dsc_t
 void png_lvgl_decoder_init(void)
 {
     lv_image_decoder_t *decoder = lv_image_decoder_create();
-    if (decoder == RT_NULL) {
+    if (decoder == NULL) {
         PNG_LOG_ERROR("create png decoder failed\n");
         return;
     }

@@ -1,0 +1,28 @@
+#ifndef __TEXT_H
+#define __TEXT_H
+
+typedef enum {
+    TEXT_MENU_UPGRADE = 0,
+    TEXT_MENU_LOGS,
+    TEXT_MENU_FACTORY_RESET,
+
+    TEXT_OTA_STANDBY,
+    TEXT_OTA_UPGRADING,
+    TEXT_OTA_UPGRADE_LOGO,
+    TEXT_OTA_UPGRADE_TEXT,
+    TEXT_OTA_UPGRADE_IMG,
+    TEXT_OTA_FAILED,
+    TEXT_OTA_SUCCESS,
+
+    TEXT_LOGS_NOTICE,
+
+    TEXT_FCT_RESET_COMFIRM,
+    TEXT_FCT_RESET_PROCESS,
+
+    TEXT_ID_NUM,
+    TEXT_ID_RSVD = 0xFF,
+} text_id_e;
+
+char *get_string(int lang, text_id_e id);
+
+#endif
