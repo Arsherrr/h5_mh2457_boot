@@ -4,7 +4,8 @@
 #include "res_fs.h"
 #include "key.h"
 #include "io.h"
-#include "bin_lvgl_decoder.h"
+#include "jpeg_hw.h"
+#include "png_lvgl_decoder.h"
 #include "jpeg_lvgl_decoder.h"
 #include "img_cache.h"
 #include "tmr.h"
@@ -14,6 +15,7 @@
 #include "update.h"
 #include "io_config.h"
 #include "USBBSP.h"
+#include "ui.h"
 
 #ifndef USE_HW_JPEG
 #define USE_HW_JPEG 1
@@ -23,6 +25,21 @@
 #define IS_KEY_UP()    get_key_state(KEY2)
 #define IS_KEY_DOWN()  get_key_state(KEY3)
 #define IS_KEY_ENTER() get_key_state(KEY4)
+
+typedef struct __attribute__((packed)) {
+    uint32_t magic;
+    uint32_t type;
+} shared_info_t;
+
+int fputc(int c, FILE* stream)
+{
+    if (stream == stdout || stream == stderr) {
+        SEGGER_RTT_PutChar(0, (char)c);
+        return c;
+    }
+
+    return EOF;
+}
 
 vu8 usb_insert = 0;
 
@@ -203,7 +220,7 @@ void usb_disconnect(void)
 
 extern void test_enter_upgrade_mode(void);
 extern void test_upgrade_done(void);
-
+extern void test_query_version(void);
 int main(void)
 {
     SysTick_Config(SystemCoreClock / 1000);
@@ -226,15 +243,28 @@ int main(void)
         USBSetup();
         
         LVGLSetup();
+        DSI_BACKLIGHT_ON(true);
+        
+        lv_indev_init();
+        
+        res_init();
+        res_fs_init();
+        png_lvgl_decoder_init();
+        jpeg_hw_init();
+        jpeg_lvgl_decoder_init();
+        
         update_init();
         is_from_app(1);
-        DSI_BACKLIGHT_ON(true);
+        ui_init();
+        
         usb_insert = 1;
 
         while (1)
         {
             lv_timer_handler();
             update_handle();
+            // test_query_version();
+            // delay_ms(1000);
         }
     }
     else

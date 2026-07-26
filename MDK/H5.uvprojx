@@ -341,7 +341,7 @@
               <MiscControls>-include global-config.h -fdebug-macro -fno-short-wchar</MiscControls>
               <Define>LV_LVGL_H_INCLUDE_SIMPLE,NDEBUG, RT_USING_ARMLIBC, RT_USING_LIBC, __STDC_LIMIT_MACROS, __CLK_TCK=RT_TICK_PER_SECOND,__RTTHREAD__,FT2_BUILD_LIBRARY,LFS_THREADSAFE</Define>
               <Undefine></Undefine>
-              <IncludePath>..\Config;..\Applications\main;..\Drivers\bsp\Include;..\Drivers\component\Display;..\Drivers\component\Display\DBI;..\Drivers\component\Display\DBI\ILI9806;..\Drivers\component\Display\DPI;..\Drivers\component\Display\DSI;..\Drivers\component\Display\DSI\AXS15260;..\Drivers\component\Display\DSI\CO5300;..\Drivers\component\Display\DSI\EK79007;..\Drivers\component\Display\DSI\GC9C01;..\Drivers\component\Display\DSI\GC9503V;..\Drivers\component\Display\DSI\HX8394F;..\Drivers\component\Display\DSI\IL79451A;..\Drivers\component\Display\DSI\ILI9806E;..\Drivers\component\Display\DSI\ILI9881C;..\Drivers\component\Display\DSI\JD9365DA;..\Drivers\component\Display\DSI\JD9852;..\Drivers\component\Display\DSI\NT35510;..\Drivers\component\Display\DSI\NV3049ET;..\Drivers\component\Display\DSI\ST7102;..\Drivers\component\Display\DSI\ST7701S;..\Drivers\component\Display\DSI\ST7703;..\Drivers\component\Display\DSI\ST7797;..\Drivers\component\Display\DSI\ST77922;..\Drivers\component\GAUPort;..\Drivers\component\I2CPort;..\Drivers\component\RetargetIO;..\Drivers\component\Touch;..\Drivers\component\Touch\AXS;..\Drivers\component\Touch\Chipsemi;..\Drivers\component\Touch\Goodix;..\Drivers\component\Touch\Hynitron;..\Drivers\component\Touch\Ilitek;..\Drivers\component\Touch\Sitronix;..\Drivers\component\USB\VCP;..\Drivers\driver;..\Libraries\CMSIS\Include;..\Libraries\Device\MegaHunt\MH245x\Include;..\Libraries\MH245x_StdPeriph_Driver\inc;..\Libraries\OSS\lvgl\9.2.2;..\Libraries\OSS\lvgl\9.2.2\src\draw;..\Applications;..\Libraries\OSS\rt-thread\5.2.2\include;..\Libraries\OSS\rt-thread\5.2.2\libcpu\arm\cortex-m4;..\Libraries\OSS\rt-thread\5.2.2\components\libc\compilers\common\extension;..\Libraries\OSS\rt-thread\5.2.2\components\finsh;..\Libraries\OSS\rt-thread\5.2.2\components;..\Libraries\OSS\rt-thread\5.2.2\components\libc\posix\delay;..\Libraries\OSS\rt-thread\5.2.2\components\libc\posix\io\termios;..\Libraries\OSS\rt-thread\5.2.2\components\libc\posix\io\poll;..\Libraries\OSS\rt-thread\5.2.2\components\libc\posix\io\stdio;..\Libraries\OSS\rt-thread\5.2.2\components\libc\posix\io\epoll;..\Libraries\OSS\rt-thread\5.2.2\components\libc\posix\io\mman;..\Libraries\OSS\rt-thread\5.2.2\components\libc\posix\io\eventfd;..\Libraries\OSS\rt-thread\5.2.2\components\libc\posix\pthreads;..\Libraries\OSS\rt-thread\5.2.2\components\libc\posix\ipc;..\Libraries\OSS\rt-thread\5.2.2\components\libc\compilers\common\include;..\Libraries\OSS\rt-thread\5.2.2\components\libc\compilers\common\extension;..\Libraries\OSS\rt-thread\5.2.2\components\libc\compilers\common\extension\fcntl\octal;..\Libraries\OSS\rt-thread\5.2.2\components\libc\cplusplus;..\Libraries\OSS\rt-thread\5.2.2\components\libc\cplusplus\os;..\Libraries\OSS\rt-thread\5.2.2\components\libc\cplusplus\cpp11\armclang;..\Libraries\OSS\rt-thread\5.2.2\components\drivers\include;..\Libraries\OSS\rt-thread\5.2.2\components\dfs\dfs_v1\include;..\Libraries\OSS\rt-thread\5.2.2\components\dfs\dfs_v1\filesystems\devfs;..\Libraries\OSS\rt-thread\5.2.2\components\drivers\include;..\Libraries\OSS\rt-thread\5.2.2\components\drivers\ktime\inc;..\Libraries\OSS\rt-thread\5.2.2\components\utilities\resource;..\Libraries\OSS\rt-thread\5.2.2\components\fal\inc;..\Libraries\OSS\freetype\2.14.3\include;..\Libraries\OSS\littlefs\2.11.3;..\Libraries\SEGGER\SystemView\SystemView_Src\Config;..\Libraries\SEGGER\SystemView\SystemView_Src\SEGGER;..\Libraries\SEGGER\SEGGER_RTT_V700\RTT;..\Libraries\USB-ESL\Target;..\Libraries\USB-ESL;..\Compat\rtthread;..\Applications\diagnoseCpp;..\Applications\diagnoseCpp\DiagEntry;..\Applications\diagnoseCpp\DiagEntry\carUI;..\Applications\diagnoseCpp\DiagEntry\OBDGpsMeter;..\Applications\diagnoseCpp\DiagEntry\SubObdGps;..\Applications\diagnoseCpp\DiagEntry\OBDGpsMeter\SubObdGps\functioncall;..\Applications\diagnoseCpp\DiagEntry\OBDGpsMeter\SubObdGps\gps;..\Applications\diagnoseCpp\DiagEntry\OBDGpsMeter\SubObdGps\obd;..\Applications\diagnoseCpp\DiagEntry\OBDGpsMeter\SubObdGps\oss;..\Applications\diagnoseCpp\DiagEntry\OBDGpsMeter\SubObdGps\pwm;..\Applications\diagnoseCpp\DiagEntry\OBDGpsMeter\SubObdGps\qmi8658a;..\Applications\diagnoseCpp\DiagEntry\OBDGpsMeter\SubObdGps\readfile;..\Applications\diagnoseCpp\DiagEntry\OBDGpsMeter\SubObdGps\sar;..\Applications\diagnoseCpp\UI;..\Applications\diagnoseCpp\UI\mainUI;..\Applications\diagnoseCpp\Fonts;..\Applications</IncludePath>
+              <IncludePath>..\MDK;..\Config;..\Applications\main;..\Drivers\bsp\Include;..\Drivers\component\Display;..\Drivers\component\Display\DBI;..\Drivers\component\Display\DBI\ILI9806;..\Drivers\component\Display\DPI;..\Drivers\component\Display\DSI;..\Drivers\component\Display\DSI\AXS15260;..\Drivers\component\Display\DSI\CO5300;..\Drivers\component\Display\DSI\EK79007;..\Drivers\component\Display\DSI\GC9C01;..\Drivers\component\Display\DSI\GC9503V;..\Drivers\component\Display\DSI\HX8394F;..\Drivers\component\Display\DSI\IL79451A;..\Drivers\component\Display\DSI\ILI9806E;..\Drivers\component\Display\DSI\ILI9881C;..\Drivers\component\Display\DSI\JD9365DA;..\Drivers\component\Display\DSI\JD9852;..\Drivers\component\Display\DSI\NT35510;..\Drivers\component\Display\DSI\NV3049ET;..\Drivers\component\Display\DSI\ST7102;..\Drivers\component\Display\DSI\ST7701S;..\Drivers\component\Display\DSI\ST7703;..\Drivers\component\Display\DSI\ST7797;..\Drivers\component\Display\DSI\ST77922;..\Drivers\component\GAUPort;..\Drivers\component\I2CPort;..\Drivers\component\RetargetIO;..\Drivers\component\Touch;..\Drivers\component\Touch\AXS;..\Drivers\component\Touch\Chipsemi;..\Drivers\component\Touch\Goodix;..\Drivers\component\Touch\Hynitron;..\Drivers\component\Touch\Ilitek;..\Drivers\component\Touch\Sitronix;..\Drivers\component\USB\VCP;..\Drivers\driver;..\Libraries\CMSIS\Include;..\Libraries\Device\MegaHunt\MH245x\Include;..\Libraries\MH245x_StdPeriph_Driver\inc;..\Libraries\OSS\lvgl\9.2.2;..\Libraries\OSS\lvgl\9.2.2\src\draw;..\Applications;..\Libraries\OSS\rt-thread\5.2.2\include;..\Libraries\OSS\rt-thread\5.2.2\libcpu\arm\cortex-m4;..\Libraries\OSS\rt-thread\5.2.2\components\libc\compilers\common\extension;..\Libraries\OSS\rt-thread\5.2.2\components\finsh;..\Libraries\OSS\rt-thread\5.2.2\components;..\Libraries\OSS\rt-thread\5.2.2\components\libc\posix\delay;..\Libraries\OSS\rt-thread\5.2.2\components\libc\posix\io\termios;..\Libraries\OSS\rt-thread\5.2.2\components\libc\posix\io\poll;..\Libraries\OSS\rt-thread\5.2.2\components\libc\posix\io\stdio;..\Libraries\OSS\rt-thread\5.2.2\components\libc\posix\io\epoll;..\Libraries\OSS\rt-thread\5.2.2\components\libc\posix\io\mman;..\Libraries\OSS\rt-thread\5.2.2\components\libc\posix\io\eventfd;..\Libraries\OSS\rt-thread\5.2.2\components\libc\posix\pthreads;..\Libraries\OSS\rt-thread\5.2.2\components\libc\posix\ipc;..\Libraries\OSS\rt-thread\5.2.2\components\libc\compilers\common\include;..\Libraries\OSS\rt-thread\5.2.2\components\libc\compilers\common\extension;..\Libraries\OSS\rt-thread\5.2.2\components\libc\compilers\common\extension\fcntl\octal;..\Libraries\OSS\rt-thread\5.2.2\components\libc\cplusplus;..\Libraries\OSS\rt-thread\5.2.2\components\libc\cplusplus\os;..\Libraries\OSS\rt-thread\5.2.2\components\libc\cplusplus\cpp11\armclang;..\Libraries\OSS\rt-thread\5.2.2\components\drivers\include;..\Libraries\OSS\rt-thread\5.2.2\components\dfs\dfs_v1\include;..\Libraries\OSS\rt-thread\5.2.2\components\dfs\dfs_v1\filesystems\devfs;..\Libraries\OSS\rt-thread\5.2.2\components\drivers\include;..\Libraries\OSS\rt-thread\5.2.2\components\drivers\ktime\inc;..\Libraries\OSS\rt-thread\5.2.2\components\utilities\resource;..\Libraries\OSS\rt-thread\5.2.2\components\fal\inc;..\Libraries\OSS\freetype\2.14.3\include;..\Libraries\OSS\littlefs\2.11.3;..\Libraries\SEGGER\SystemView\SystemView_Src\Config;..\Libraries\SEGGER\SystemView\SystemView_Src\SEGGER;..\Libraries\SEGGER\SEGGER_RTT_V700\RTT;..\Libraries\USB-ESL\Target;..\Libraries\USB-ESL;..\Compat\rtthread;..\Applications\diagnoseCpp;..\Applications\diagnoseCpp\DiagEntry;..\Applications\diagnoseCpp\DiagEntry\carUI;..\Applications\diagnoseCpp\DiagEntry\OBDGpsMeter;..\Applications\diagnoseCpp\DiagEntry\SubObdGps;..\Applications\diagnoseCpp\DiagEntry\OBDGpsMeter\SubObdGps\functioncall;..\Applications\diagnoseCpp\DiagEntry\OBDGpsMeter\SubObdGps\gps;..\Applications\diagnoseCpp\DiagEntry\OBDGpsMeter\SubObdGps\obd;..\Applications\diagnoseCpp\DiagEntry\OBDGpsMeter\SubObdGps\oss;..\Applications\diagnoseCpp\DiagEntry\OBDGpsMeter\SubObdGps\pwm;..\Applications\diagnoseCpp\DiagEntry\OBDGpsMeter\SubObdGps\qmi8658a;..\Applications\diagnoseCpp\DiagEntry\OBDGpsMeter\SubObdGps\readfile;..\Applications\diagnoseCpp\DiagEntry\OBDGpsMeter\SubObdGps\sar;..\Applications\diagnoseCpp\UI;..\Applications\diagnoseCpp\UI\mainUI;..\Applications\diagnoseCpp\Fonts;..\Applications</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -436,9 +436,14 @@
               <FilePath>..\Applications\main\jpeg_lvgl_decoder.c</FilePath>
             </File>
             <File>
-              <FileName>bin_lvgl_decoder.c</FileName>
+              <FileName>png_lvgl_decoder.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Applications\main\bin_lvgl_decoder.c</FilePath>
+              <FilePath>..\Applications\main\png_lvgl_decoder.c</FilePath>
+            </File>
+            <File>
+              <FileName>img_cache.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Applications\main\img_cache.c</FilePath>
             </File>
             <File>
               <FileName>res.c</FileName>
@@ -449,6 +454,11 @@
               <FileName>at.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Applications\main\at.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Applications\main\ui.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -553,11 +563,6 @@
               <FileName>USBVCP.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Drivers\bsp\Source\USBVCP.c</FilePath>
-            </File>
-            <File>
-              <FileName>RetargetIO.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drivers\bsp\Source\RetargetIO.c</FilePath>
             </File>
             <File>
               <FileName>LVGLPort.c</FileName>
@@ -668,11 +673,6 @@
         <Group>
           <GroupName>Component/freetype</GroupName>
           <Files>
-            <File>
-              <FileName>LVGLPort.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drivers\bsp\Source\LVGLPort.c</FilePath>
-            </File>
             <File>
               <FileName>ftbase.c</FileName>
               <FileType>1</FileType>

@@ -1,0 +1,14 @@
+# AT32 固件路径.
+bin1_path: "H5_MCU.bin"
+
+# MH2457 固件路径.
+bin2_path: "H5.bin"
+
+# AT32 升级地址.
+upgrade_address: "0x08001000"
+
+# 输出名称.
+output_name: "firmware"
+
+# 魔法数字.
+magic: "0x5A5A5A5A"

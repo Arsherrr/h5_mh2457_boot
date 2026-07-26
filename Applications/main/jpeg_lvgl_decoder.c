@@ -2,26 +2,54 @@
 #include "jpeg_hw.h"
 #include "res.h"
 #include "lvgl.h"
+#include "res_fs.h"
+#include "log.h"
 #include "../../../Libraries/OSS/lvgl/9.2.2/src/draw/lv_image_decoder_private.h"
+#include "lvgl.h"
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
 
-#define RES_BIN_BASE_ADDR 0x0910B600UL
+#define JPEG_DEC_BUF_SIZE  (855 * 480 * 3)
 
-/* 打开/关闭 JPEG_DEC 调试日志 */
-// #define JPEG_DEC_DEBUG
+/* [ 配置 ] 是否开启 LOG 日志. */
+#define USE_JPEG_LOG 1
 
-typedef struct {
-    uint32_t magic;
-    uint16_t version;
-    uint16_t count;
-    uint32_t header_size;
-    uint32_t data_offset;
-} __attribute__((packed)) jl_res_bin_header_t;
+/* [ 配置 ] LOG 等级. 
+ * LOG_LEVEL_TRACE
+ * LOG_LEVEL_INFO
+ * LOG_LEVEL_WARN
+ * LOG_LEVEL_ERROR
+ * LOG_LEVEL_NONE
+ */
+#define JPEG_LOG_LEVEL ( LOG_LEVEL_WARN )
 
-static const jl_res_bin_header_t *s_hdr = (const jl_res_bin_header_t *)RES_BIN_BASE_ADDR;
-static const uint8_t *s_bin_base = (const uint8_t *)RES_BIN_BASE_ADDR;
+#if USE_JPEG_LOG
+#define _JPEG_LOG_LEVEL JPEG_LOG_LEVEL
+#else
+#define _JPEG_LOG_LEVEL LOG_LEVEL_NONE
+#endif
+
+#if _JPEG_LOG_LEVEL <= LOG_LEVEL_TRACE
+#define JPEG_LOG_TRACE(...) printf("[JPEG DEC] " __VA_ARGS__)
+#else
+#define JPEG_LOG_TRACE(...)
+#endif
+#if _JPEG_LOG_LEVEL <= LOG_LEVEL_INFO
+#define JPEG_LOG_INFO(...) printf("[JPEG DEC] " __VA_ARGS__)
+#else
+#define JPEG_LOG_INFO(...)
+#endif
+#if _JPEG_LOG_LEVEL <= LOG_LEVEL_WARN
+#define JPEG_LOG_WARN(...) printf("[JPEG DEC] [WARN] " __VA_ARGS__)
+#else
+#define JPEG_LOG_WARN(...)
+#endif
+#if _JPEG_LOG_LEVEL <= LOG_LEVEL_ERROR
+#define JPEG_LOG_ERROR(...) printf("[JPEG DEC] [ERROR] " __VA_ARGS__)
+#else
+#define JPEG_LOG_ERROR(...)
+#endif
 
 typedef struct {
     const jl_resource_info_t *res;
@@ -31,7 +59,6 @@ typedef struct {
     uint8_t *raw_buf;
 } jpeg_session_t;
 
-static const jl_resource_info_t *find_res_by_path(const char *path);
 static void free_jpeg_session(jpeg_session_t *session);
 
 /* 单张 JPEG 的动态缓存, 首次解码后复用. */
@@ -52,10 +79,6 @@ static void free_cached_jpeg(void)
         lv_free(s_cached_image);
         s_cached_image = NULL;
     }
-    if (s_cached_raw_buf) {
-        lv_free(s_cached_raw_buf);
-        s_cached_raw_buf = NULL;
-    }
     s_cached_res = NULL;
 }
 
@@ -65,28 +88,26 @@ static lv_result_t decoder_info_cb(lv_image_decoder_t * decoder, lv_image_decode
     if (dsc == NULL || dsc->src == NULL || header == NULL) return LV_RESULT_INVALID;
 
     const char *path = (const char *)dsc->src;
-#ifdef JPEG_DEC_DEBUG
-    printf("[JPEG_DEC] info_cb: %s\n", path ? path : "(null)");
-#endif
+
+    JPEG_LOG_TRACE("info_cb: %s\n", path ? path : "(null)");
 
     const jl_resource_info_t *res = find_res_by_path(path);
     if (res == NULL || res->format != 1) return LV_RESULT_INVALID;
 
     header->magic = LV_IMAGE_HEADER_MAGIC;
-    header->cf = LV_COLOR_FORMAT_RGB565;
+    header->cf = LV_COLOR_FORMAT_RGB888;
     header->w = res->width;
     header->h = res->height;
-    header->stride = LV_DRAW_BUF_STRIDE(res->width, LV_COLOR_FORMAT_RGB565);
+    header->stride = LV_DRAW_BUF_STRIDE(res->width, LV_COLOR_FORMAT_RGB888);
     header->flags = 0;
 
-#ifdef JPEG_DEC_DEBUG
-    printf("[JPEG_DEC] info hit: id=%u src=%s cf=%u w=%u h=%u data_size=%u\n",
+    JPEG_LOG_TRACE("info hit: id=%u src=%s cf=%u w=%u h=%u data_size=%u\n",
                res->id, res->source_path,
                (unsigned int)header->cf,
                (unsigned int)header->w,
                (unsigned int)header->h,
                (unsigned int)res->size);
-#endif
+
     return LV_RESULT_OK;
 }
 
@@ -99,31 +120,34 @@ static lv_result_t decoder_open_cb(lv_image_decoder_t * decoder, lv_image_decode
     const jl_resource_info_t *res = find_res_by_path(path);
     if (res == NULL || res->format != 1) return LV_RESULT_INVALID;
 
-#ifdef JPEG_DEC_DEBUG
-    printf("[JPEG_DEC] open_cb: %s\n", path ? path : "(null)");
-#endif
+    JPEG_LOG_INFO("open_cb: %s\n", path ? path : "(null)");
 
     if (s_cached_res == res && s_cached_image != NULL && s_cached_raw_buf != NULL) {
         dsc->header = s_cached_image->header;
         dsc->decoded = (lv_draw_buf_t *)s_cached_image;
         dsc->user_data = NULL;
-#ifdef JPEG_DEC_DEBUG
-        printf("[JPEG_DEC] cache hit: id=%u src=%s img=%p data=%p\n",
+        JPEG_LOG_INFO("[JPEG_DEC] cache hit: id=%u src=%s img=%p data=%p\n",
                    res->id, res->source_path, s_cached_image, s_cached_raw_buf);
-#endif
         return LV_RESULT_OK;
     }
 
     if (s_cache_in_use) {
-#ifdef JPEG_DEC_DEBUG
-        printf("[JPEG_DEC] cache busy\n");
-#endif
+        JPEG_LOG_INFO("cache busy\n");
         return LV_RESULT_INVALID;
     }
     s_cache_in_use = 1;
 
     /* 切换到新图片前, 先释放旧缓存. */
     free_cached_jpeg();
+
+    /* 校验图片尺寸, 确保不超出固定缓冲区上限. */
+    const uint32_t rgb_size = (uint32_t)res->width * (uint32_t)res->height * 2u;
+    if (rgb_size > JPEG_DEC_BUF_SIZE) {
+        s_cache_in_use = 0;
+        JPEG_LOG_ERROR("image too large: %ux%u needs %u > %d\n",
+                       res->width, res->height, rgb_size, JPEG_DEC_BUF_SIZE);
+        return LV_RESULT_INVALID;
+    }
 
     jpeg_session_t *session = (jpeg_session_t *)lv_malloc(sizeof(jpeg_session_t));
     if (session == NULL) {
@@ -133,47 +157,42 @@ static lv_result_t decoder_open_cb(lv_image_decoder_t * decoder, lv_image_decode
     memset(session, 0, sizeof(*session));
 
     session->res = res;
-    session->jpeg_src_ptr = s_bin_base + s_hdr->data_offset + res->offset;
+    session->jpeg_src_ptr = g_res_base + g_res_hdr->data_offset + res->offset;
     session->jpeg_src_len = res->size;
 
-    const uint32_t rgb_size = (uint32_t)res->width * (uint32_t)res->height * 2u;
-    s_cached_raw_buf = (uint8_t *)lv_malloc(rgb_size); /* 指定使用 SDRAM 空间. */
     if (s_cached_raw_buf == NULL) {
         free_jpeg_session(session);
         s_cache_in_use = 0;
+        JPEG_LOG_ERROR("s_cached_raw_buf not initialized\n");
         return LV_RESULT_INVALID;
     }
 
     s_cached_image = (lv_image_dsc_t *)lv_malloc(sizeof(lv_draw_buf_t));
     if (s_cached_image == NULL) {
-        lv_free(s_cached_raw_buf);
-        s_cached_raw_buf = NULL;
         free_jpeg_session(session);
         s_cache_in_use = 0;
+        JPEG_LOG_WARN("OOM (cached_image).\n");
         return LV_RESULT_INVALID;
     }
     memset(s_cached_image, 0, sizeof(lv_draw_buf_t));
     s_cached_image->header.magic = LV_IMAGE_HEADER_MAGIC;
-    s_cached_image->header.cf = LV_COLOR_FORMAT_RGB565;
+    s_cached_image->header.cf = LV_COLOR_FORMAT_RGB888;
     s_cached_image->header.w = res->width;
     s_cached_image->header.h = res->height;
-    s_cached_image->header.stride = LV_DRAW_BUF_STRIDE(res->width, LV_COLOR_FORMAT_RGB565);
+    s_cached_image->header.stride = LV_DRAW_BUF_STRIDE(res->width, LV_COLOR_FORMAT_RGB888);
     s_cached_image->header.flags = 0;
     s_cached_image->data_size = rgb_size;
     s_cached_image->data = s_cached_raw_buf;
     s_cached_image->reserved = NULL;
 
     /* 使用硬件 JPEG 解码. */
-    if (!jpeg_hw_decode_block(session->jpeg_src_ptr, session->jpeg_src_len,
-                             res->width, res->height,
-                             s_cached_raw_buf, rgb_size)) {
-#ifdef JPEG_DEC_DEBUG
-        printf("[JPEG_DEC] jpeg decode failed: %s\n", path);
-#endif
+    if (!jpeg_hw_dec_handler(session->jpeg_src_ptr, session->jpeg_src_len,
+                              res->width, res->height,
+                              s_cached_raw_buf, rgb_size,
+                              DMA2D_OUTPUT_MODE_RGB888)) {
+        JPEG_LOG_ERROR("jpeg decode failed: %s\n", path);
         lv_free(s_cached_image);
         s_cached_image = NULL;
-        lv_free(s_cached_raw_buf);
-        s_cached_raw_buf = NULL;
         free_jpeg_session(session);
         s_cache_in_use = 0;
         return LV_RESULT_INVALID;
@@ -184,8 +203,7 @@ static lv_result_t decoder_open_cb(lv_image_decoder_t * decoder, lv_image_decode
     dsc->decoded = (lv_draw_buf_t *)s_cached_image;
     dsc->user_data = session;
 
-#ifdef JPEG_DEC_DEBUG
-    printf("[JPEG_DEC] open ok: id=%u src=%s magic=0x%02X cf=%u w=%u h=%u data_size=%u img=%p data=%p first=%02X %02X %02X %02X\n",
+    JPEG_LOG_TRACE("open ok: id=%u src=%s magic=0x%02X cf=%u w=%u h=%u data_size=%u img=%p data=%p first=%02X %02X %02X %02X\n",
                res->id, res->source_path,
                (unsigned int)s_cached_image->header.magic,
                (unsigned int)s_cached_image->header.cf,
@@ -195,7 +213,6 @@ static lv_result_t decoder_open_cb(lv_image_decoder_t * decoder, lv_image_decode
                s_cached_image,
                s_cached_raw_buf,
                s_cached_raw_buf[0], s_cached_raw_buf[1], s_cached_raw_buf[2], s_cached_raw_buf[3]);
-#endif
     return LV_RESULT_OK;
 }
 
@@ -206,9 +223,7 @@ static void decoder_close_cb(lv_image_decoder_t * decoder, lv_image_decoder_dsc_
 
     jpeg_session_t *session = (jpeg_session_t *)dsc->user_data;
     if (session) {
-#ifdef JPEG_DEC_DEBUG
-        printf("[JPEG_DEC] close_cb: session=%p\n", session);
-#endif
+        JPEG_LOG_INFO("close_cb: session=%p\n", session);
         free_jpeg_session(session);
         dsc->user_data = NULL;
     }
@@ -216,6 +231,7 @@ static void decoder_close_cb(lv_image_decoder_t * decoder, lv_image_decoder_dsc_
     dsc->decoded = NULL;
 }
 
+#if 0
 static const jl_resource_info_t *find_res_by_path(const char *path)
 {
     if (path == NULL) return NULL;
@@ -252,24 +268,34 @@ static const jl_resource_info_t *find_res_by_path(const char *path)
     }
     return NULL;
 }
+#endif
 
 void jpeg_lvgl_decoder_init(void)
 {
-    /* 初始化硬件 JPEG. */
-    jpeg_hw_init();
-
+    jpeg_mem_init();
+    
     lv_image_decoder_t * decoder = lv_image_decoder_create();
     if (decoder == NULL) {
-#ifdef JPEG_DEC_DEBUG
-        printf("[JPEG_DEC] create jpeg decoder failed\n");
-#endif
+        JPEG_LOG_ERROR("create jpeg decoder failed\n");
         return;
     }
 
     lv_image_decoder_set_info_cb(decoder, decoder_info_cb);
     lv_image_decoder_set_open_cb(decoder, decoder_open_cb);
     lv_image_decoder_set_close_cb(decoder, decoder_close_cb);
-#ifdef JPEG_DEC_DEBUG
-    printf("[JPEG_DEC] jpeg decoder registered\n");
-#endif
+
+    JPEG_LOG_INFO("jpeg decoder registered\n");
+}
+
+int jpeg_mem_init(void)
+{
+    /* 分配固定内存. */
+    s_cached_raw_buf = (uint8_t *)lv_malloc(JPEG_DEC_BUF_SIZE);
+    if (s_cached_raw_buf == NULL) {
+        JPEG_LOG_ERROR("OOM: s_cached_raw_buf (fixed %d bytes)\n", JPEG_DEC_BUF_SIZE);
+        return -1;
+    }
+    JPEG_LOG_INFO("s_cached_raw_buf allocated: %p, size=%d\n", s_cached_raw_buf, JPEG_DEC_BUF_SIZE);
+    
+    return 0;
 }

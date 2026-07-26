@@ -28,6 +28,7 @@ UPD_APP = 1
 UPD_EXT_FLASH = 2
 UPD_LOGO = 3
 UPD_LOGO_EXT_FLASH = 3   # same code, distinguished by file size
+UPD_APP_DUAL = 4         # dual MCU (APP + AT425)
 
 # Packet size
 PACK_SIZE_MCU = 4096
@@ -140,23 +141,34 @@ class SerialLink:
     def recv_response(self, expected_cmd: Optional[int] = None, timeout: float = None) -> Tuple[int, bytes]:
         t_end = time.time() + (timeout if timeout else self.timeout)
         buffer = b''
+        # 发送命令后短暂等待，给设备处理时间
+        time.sleep(0.05)
         while time.time() < t_end:
-            buffer += self.ser.read(1)
-            if FRAME_HEADER_RESP in buffer:
-                idx = buffer.find(FRAME_HEADER_RESP)
-                buffer = buffer[idx:]
-                if len(buffer) >= 4:
-                    total_len = struct.unpack('<H', buffer[2:4])[0]
-                    if len(buffer) >= total_len:
-                        frame = buffer[:total_len]
-                        buffer = buffer[total_len:]
-                        cmd_resp, data = parse_response(frame)
-                        if expected_cmd is not None:
-                            expected_resp_cmd = expected_cmd + CMD_OFFSET_TO_PC
-                            if cmd_resp != expected_resp_cmd:
-                                raise ValueError(f"Unexpected response cmd: 0x{cmd_resp:04X}, expected 0x{expected_resp_cmd:04X}")
-                        return cmd_resp, data
-        raise TimeoutError("No valid response received")
+            # 非阻塞批量读取 — 只在数据可用时读取，避免 read() 超时消耗等待时间
+            waiting = self.ser.in_waiting
+            if waiting > 0:
+                chunk = self.ser.read(waiting)
+                if chunk:
+                    buffer += chunk
+                    if FRAME_HEADER_RESP in buffer:
+                        idx = buffer.find(FRAME_HEADER_RESP)
+                        buffer = buffer[idx:]
+                        if len(buffer) >= 4:
+                            total_len = struct.unpack('<H', buffer[2:4])[0]
+                            if len(buffer) >= total_len:
+                                frame = buffer[:total_len]
+                                buffer = buffer[total_len:]
+                                cmd_resp, data = parse_response(frame)
+                                if expected_cmd is not None:
+                                    expected_resp_cmd = expected_cmd + CMD_OFFSET_TO_PC
+                                    if cmd_resp != expected_resp_cmd:
+                                        raise ValueError(f"Unexpected response cmd: 0x{cmd_resp:04X}, expected 0x{expected_resp_cmd:04X}")
+                                return cmd_resp, data
+            else:
+                # 没有可用数据，短暂休眠避免 CPU 空转
+                time.sleep(0.01)
+        raise TimeoutError(f"No valid response received within {timeout if timeout else self.timeout}s. "
+                           f"Expected cmd 0x{(expected_cmd + CMD_OFFSET_TO_PC) if expected_cmd else 'any':04X}")
 
     def close(self):
         self.ser.close()
@@ -373,7 +385,7 @@ def main():
                 print(f"Merging {mcu1} and {mcu2} into {merged} ...")
                 size = merge_dual_mcu(mcu1, mcu2, merged)
                 print(f"Merged file size: {size} bytes")
-                upgrade_file(link, UPD_APP, merged, PACK_SIZE_MCU, SIZE_MCU)
+                upgrade_file(link, UPD_APP_DUAL, merged, PACK_SIZE_MCU, SIZE_MCU)
                 # optionally delete merged file after success
                 # os.remove(merged)
             elif cmd == '5':

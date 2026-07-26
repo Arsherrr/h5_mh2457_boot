@@ -48,7 +48,7 @@ extern u32 ticks_standby;
 
 #define CRC_ATTRI_CODE                  (0x5C6B2023) //CRC特征码
 
-#define LEN_IAP_NAME                    (5) //产品名称的长度
+#define LEN_IAP_NAME                    (3) //产品名称的长度
 
 
 #if (PACK_SIZE_FLASH != 4096)

@@ -9,8 +9,10 @@ V1.0 (2025/05/09 16:00:00)
 #include "crc.h"
 #include "tmr.h"
 #include "USBBSP.h"
+#include "at.h"
+#include "ui.h"
 
-const char name[10] __attribute__((section(".ARM.__at_0x8002000"))) = "H5 BOOT";
+const char name[10] __attribute__((section(".ARM.__at_0x8002000"))) = "H5";
 const char ver[10] __attribute__((section(".ARM.__at_0x8002010"))) = "1.0";
 const char hw[10] __attribute__((section(".ARM.__at_0x8002020"))) = "1.0";
 
@@ -24,12 +26,15 @@ void disp_success(void)
 {}
 void disp_verifying(void)
 {}
+
 void update_process_bar(u8 percent)
-{}
+{
+    process_update(percent);
+}
+
 void uart_send(u8* buf, u16 len)
 {
-    // uart_write(UART_ID_AT, buf, len);
-    /* 通过 USB 发送而不是串口. */
+    uart_write(UART_ID_AT, buf, len);
 }
 
 int q_uart_pop(u8 *byte)
@@ -188,6 +193,12 @@ void update_init(void)
     ticks_standby = ticks_sys;
 }
 
+static u8 at_sub_idx;           // 当前子包索引 (0~3)
+static u8 at_sub_total;         // 总子包数
+static u8 at_data_buf[PACK_SIZE_MCU]; // 保存当前 4KB 数据
+static u16 at_data_len;         // 实际数据长度（可能小于 4096）
+static u16 at_pack_num;         // 当前处理的包序号
+
 /**
   ******************************************************************************
   * 函数 : int main(void)
@@ -198,6 +209,8 @@ void update_init(void)
   */
 void update_handle(void)
 {
+    u16 index;
+
     switch (step)
     {
     case 0:
@@ -232,16 +245,15 @@ void update_handle(void)
         break;
 
     case 2: //长度
-        for (i = 0; i < 2; i++)
+        ret = VCPReadBytes(&tmp, 1);
+        if (1 == ret)
         {
-            ret = 0;
-            while (!ret)
+            buf_r[cnt_r++] = tmp;
+            if (cnt_r >= 4)
             {
-                ret = VCPReadBytes(&tmp, 1);
-                buf_r[cnt_r++] = tmp;
+                step = 3;
             }
         }
-        step = 3;
         break;
 
     case 3:
@@ -387,24 +399,28 @@ ACK_LOOP_FLASH:
         break;
 
     case 6: //写入到内部rom
-        if (pack_num_cur == 0) //第0包数据是信息包
+        /* @@ + LEN(2) + ID(2) + Payload + CRC(2) + \r\n */
+        if (pack_num_cur == 0)
         {
-            u8 i, xor;
+            u32 magic = 0;
+            u8 i, xor = 0;
 
-            for (i = 0, xor = 0; i < 9; i++)
+            magic = *((u32 *)&buf_r[9 + 0x3AC]);
+
+            for (i = 0, xor = 0; i < 12; i++)
             {
-                xor ^= buf_r[9+0x3B0+i];
+                xor ^= buf_r[9+0x3AC+i];
             }
 
-            if (xor == 0)
+            if (magic == 0x5A5A5A5A && xor == buf_r[9+0x3AC+12])
             {
                 memcpy((void*)&addr_at425, (void*)&buf_r[9+0x3B0], 4);
                 memcpy((void*)&size_at425, (void*)&buf_r[9+0x3B0+4], 4);
                 pack_cnt_at425 = size_at425 / pack_size;
                 if (size_at425 % pack_size) pack_cnt_at425++;
-                buf_t[0] = 1;
+                buf_t[0] = 1; /* 1: Internal Flash, 2: External Flash (not Logo), 3: Logo / Logo + External Flash. */
                 memcpy((void*)&buf_t[1], (void*)&size_at425, 4);
-                len = pack_buf_at425(CMD_SEND_FILE_SIZE, buf_t, 5);
+                len = pack_buf_at425(AT_CMD_SEND_FILE_SIZE, buf_t, 5);
                 uart_send(buf_s, len);
                 step = 101;
                 ticks_to = ticks_sys;
@@ -432,8 +448,13 @@ ACK_LOOP_FLASH:
 
         if (pack_cnt_at425 && (pack_num_cur <= pack_cnt_at425))
         {
+            /* 转换 ID 后转发给 AT32. */
             step = 101;
-            uart_send(buf_r, cnt_r);
+            len = cnt_r - 10; /* @@ + 2len + 2cmd + 2crc + \r\n */
+            if (len == 0 || len > (pack_size + 3)) printf("[UPDATE] [ERROR] Invalid data len (%d)\n", len);
+
+            len = pack_buf_at425(AT_CMD_SEND_DATA, (u8 *)&buf_r[6], len);
+            uart_send(buf_s, len);
         }
         else
         {
@@ -686,9 +707,13 @@ ACK_LOOP_APP:
 
     case 12: //查询序列号
         step = 101;
-        len = pack_buf_at425(CMD_GET_SN, NULL, 0);
+        len = pack_buf_at425(AT_CMD_GET_SN, NULL, 0);
         uart_send(buf_s, len);
         break;
+
+/*
+ * *************************** AT32 升级通讯解析 ***************************
+ */
 
     case 101:
         cnt_r = 0;
@@ -813,7 +838,7 @@ ACK_LOOP_APP:
         step = 101;
         cmd_req = (buf_r[4] << 8) + buf_r[5];
         cmd_req -= CMD_OFFSET_FROM_AT425;
-        if (cmd_req == CMD_SEND_DATA) //下发升级数据包
+        if (cmd_req == AT_CMD_SEND_DATA) //下发升级数据包
         {
             if (!buf_r[6])
             {
@@ -837,7 +862,7 @@ ACK_LOOP_APP:
         //    len = pack_buf_at425(CMD_SEND_FILE_SIZE, buf_r, 5);
         //    uart_send(buf_s, len);
         //}
-        else if (cmd_req == CMD_SEND_FILE_SIZE) //下发文件大小
+        else if (cmd_req == AT_CMD_SEND_FILE_SIZE) //下发文件大小
         {
             step = 10;
             buf_t[0] = 0;
@@ -845,7 +870,7 @@ ACK_LOOP_APP:
             ticks_to = ticks_sys;
             goto ACK_LOOP_APP;
         }
-        else if (cmd_req == CMD_GET_SN)
+        else if (cmd_req == AT_CMD_GET_SN)
         {
             step = 0;
             memcpy((void*)buf_t, (void*)&buf_r[6], 4);
@@ -861,4 +886,3 @@ ACK_LOOP_APP:
         break;
     }
 }
-

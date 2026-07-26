@@ -40,7 +40,7 @@
 #define LV_MEM_SIZE (300U * 1024U)
 
 /*Size of the memory expand for `lv_malloc()` in bytes*/
-#define LV_MEM_POOL_EXPAND_SIZE 0
+#define LV_MEM_POOL_EXPAND_SIZE (5 * 1024 * 1024)
 #endif    /*LV_USE_STDLIB_MALLOC == LV_STDLIB_BUILTIN*/
 
 /*====================

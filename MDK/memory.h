@@ -4,8 +4,14 @@
 ;   <o1> Flash Size (in Bytes) <0x0-0xFFFFFFFF:8>
 ; </h>
  *----------------------------------------------------------------------------*/
-#define __ROM_BASE      0x08001000
+#define __BOOT_BASE     0x08001000
+#define __APP_BASE      0x080B0000
+#define __ROM_BASE      __BOOT_BASE
 #define __ROM_SIZE      0x01FFF000
+
+#define RES_TEST_BASE   0x08301000
+#define RES_LOGO_BASE   0x0910C000
+#define RES_IMG_BASE    0x09170000
 
 #define __RAM_CODE_SIZE   ( 4 * 1024 )
 

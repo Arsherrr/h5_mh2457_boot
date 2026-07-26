@@ -5,17 +5,10 @@
 extern "C" {
 #endif
 
+#include "res.h"
 #include "lvgl.h"
 #include <stdint.h>
 #include <stdbool.h>
-
-typedef struct {
-    uint32_t magic;
-    uint16_t version;
-    uint16_t count;
-    uint32_t header_size;
-    uint32_t data_offset;
-} __attribute__((packed)) jl_res_bin_header_t;
 
 typedef struct {
     uint32_t key;

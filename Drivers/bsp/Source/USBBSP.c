@@ -98,7 +98,7 @@ void USBSetup(void)
     device->SerialNumber = USBUniqueSN;
 
     // Configure USBDevice's VendorID, ProductID and ProductRelease
-    device->Init(device, hal, 0x0D28, 0xCCDD, 0x0001);
+    device->Init(device, hal, 0x28E9, 0x018A, 0x0001);
 
 #if USE_COMPONENT_USBMSD
     MSDSetup(device);
