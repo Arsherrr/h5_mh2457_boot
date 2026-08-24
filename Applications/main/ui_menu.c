@@ -4,23 +4,19 @@
 #include "text.h"
 #include "mh2457.h"
 #include "tmr.h"
+#include "rtt_cli.h"
 
 int menu_select = 0;
 
 // ==================== 1. 外部接口与全局句柄声明 ====================
 extern lv_indev_t *g_indevKeyPad; // 您的键盘设备句柄
 
-// 【优化点】：不用静态内存，直接声明并复用您系统现有的 yuv_buf 指存空间
-extern uint8_t *yuv_buf;
-
 extern int language;
+extern void factory_mode_hotkey_enable(int enable);
 
 LV_FONT_DECLARE(lv_font_puhui_42);
 LV_FONT_DECLARE(lv_font_puhui_40);
 
-extern lv_draw_buf_t menu_upgrade;
-extern lv_draw_buf_t menu_logs;
-extern lv_draw_buf_t menu_reset;
 extern lv_draw_buf_t menu_back;
 
 extern lv_draw_buf_t menu_bg_buf;
@@ -31,6 +27,10 @@ static lv_group_t *menu_group = NULL;
 static lv_obj_t *func_page_scr = NULL;
 static lv_group_t *func_group = NULL;
 
+/* 0=主菜单 1=日志 2=重置确认 3=重置进行中 */
+static int s_menu_page = 0;
+static lv_obj_t *s_lock_tips = NULL;
+
 #define CANVAS_WIDTH 854
 #define CANVAS_HEIGHT 480
 
@@ -38,6 +38,9 @@ static lv_group_t *func_group = NULL;
 static void menu_btn_event_cb(lv_event_t *e);
 static void page_usb_event_cb(lv_event_t *e);
 static void page_factory_event_cb(lv_event_t *e);
+static void open_logs_page(void);
+static void open_factory_page(void);
+static void ui_menu_lang_reload(void);
 
 // ==================== 2. 主菜单：菜单卡片组件创建 ====================
 static lv_obj_t *create_menu_card(lv_obj_t *parent, const char *symbol, const char *text, uint32_t user_data)
@@ -54,9 +57,9 @@ static lv_obj_t *create_menu_card(lv_obj_t *parent, const char *symbol, const ch
     // === 未选中状态样式：高透精细亚克力 ===
     lv_obj_set_style_bg_color(card, lv_color_white(), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(card, LV_OPA_10, LV_PART_MAIN);
-    lv_obj_set_style_radius(card, 16, LV_PART_MAIN);
+    lv_obj_set_style_radius(card, 30, LV_PART_MAIN);
 
-    // 1px 的超细白色精致高光边
+    // 1px 的超细白色精致高光边，固定不参与状态切换
     lv_obj_set_style_border_color(card, lv_color_white(), LV_PART_MAIN);
     lv_obj_set_style_border_width(card, 1, LV_PART_MAIN);
     lv_obj_set_style_border_opa(card, LV_OPA_20, LV_PART_MAIN);
@@ -67,14 +70,14 @@ static lv_obj_t *create_menu_card(lv_obj_t *parent, const char *symbol, const ch
     lv_obj_set_style_shadow_offset_y(card, 8, LV_PART_MAIN);
 
     static lv_style_transition_dsc_t trans;
-    static const lv_style_prop_t props[] = {LV_STYLE_BG_OPA, LV_STYLE_BORDER_OPA, LV_STYLE_BORDER_COLOR, LV_STYLE_SHADOW_COLOR, 0};
+    static const lv_style_prop_t props[] = {LV_STYLE_BG_OPA, LV_STYLE_SHADOW_COLOR, LV_STYLE_SHADOW_WIDTH, 0};
     lv_style_transition_dsc_init(&trans, props, lv_anim_path_ease_out, 120, 0, NULL);
     lv_obj_set_style_transition(card, &trans, LV_PART_MAIN);
 
     // === 选中高亮状态样式 ===
     lv_obj_set_style_bg_opa(card, LV_OPA_20, LV_STATE_FOCUSED);
-    lv_obj_set_style_border_color(card, lv_color_hex(0x93C5FD), LV_STATE_FOCUSED);
-    lv_obj_set_style_border_opa(card, LV_OPA_60, LV_STATE_FOCUSED);
+    lv_obj_set_style_border_color(card, lv_color_white(), LV_STATE_FOCUSED);
+    lv_obj_set_style_border_opa(card, LV_OPA_20, LV_STATE_FOCUSED);
 
     // 柔和的雾化冷白光，不加粗线边框
     lv_obj_set_style_shadow_color(card, lv_color_white(), LV_STATE_FOCUSED);
@@ -106,81 +109,33 @@ static lv_obj_t *create_menu_card(lv_obj_t *parent, const char *symbol, const ch
     return card;
 }
 
-// ==================== 3. 核心机制：复用 yuv_buf 并在 ARGB8888 模式下绘制完美融色背景 ====================
+// ==================== 3. 菜单背景：直接使用静态图片资源，避免无效死代码 ====================
 static void draw_static_gradient_bg(lv_obj_t *parent)
 {
     lv_obj_t *bg = lv_img_create(parent);
     lv_image_set_src(bg, &menu_bg_buf);
-
-    return;
-
-    // 安全校验：防止外部 yuv_buf 指针尚未分配或为空导致硬件死机
-    if (yuv_buf == NULL)
-    {
-        lv_obj_set_style_bg_color(parent, lv_color_hex(0x06070D), LV_PART_MAIN);
-        return;
-    }
-
-    // 1. 创建画布，直接复用您传入的 yuv_buf
-    lv_obj_t *canvas = lv_canvas_create(parent);
-    // 【核心修复】：必须强制使用 LV_COLOR_FORMAT_ARGB8888，激活 Alpha 通道，彻底消除灰白色脏斑
-    lv_canvas_set_buffer(canvas, yuv_buf, CANVAS_WIDTH, CANVAS_HEIGHT, LV_COLOR_FORMAT_ARGB8888);
-    lv_obj_set_pos(canvas, 0, 0);
-
-    // 2. 填充底层极深的暗黑深蓝色基底 (Win11 网页项目的基础夜空色)
-    lv_canvas_fill_bg(canvas, lv_color_hex(0x05060C), LV_OPA_COVER);
-
-    // 3. 开启高级图层绘图，在带 Alpha 控制下绘制完美的色块对冲渗透
-    lv_layer_t layer;
-    lv_canvas_init_layer(canvas, &layer);
-
-    // 绘制左侧大面积粉紫色渗透光晕
-    lv_draw_rect_dsc_t rect_dsc1;
-    lv_draw_rect_dsc_init(&rect_dsc1);
-    rect_dsc1.bg_color = lv_color_hex(0x630B5C); 
-    rect_dsc1.bg_grad.dir = LV_GRAD_DIR_VER;     
-    
-    // LVGL 9.2 正确的数组赋值方式
-    rect_dsc1.bg_grad.stops_count = 2;                             // 共有 2 个颜色点
-    rect_dsc1.bg_grad.stops[0].color = lv_color_hex(0x630B5C);     // 起点颜色
-    rect_dsc1.bg_grad.stops[0].opa   = LV_OPA_60;                  // 起点透明度
-    rect_dsc1.bg_grad.stops[0].frac  = 0;                         // 起点位置 (0%)
-    
-    rect_dsc1.bg_grad.stops[1].color = lv_color_hex(0x05060C);     // 终点颜色
-    rect_dsc1.bg_grad.stops[1].opa   = LV_OPA_TRANSP;              // 终点透明度 (完全透明边缘)
-    rect_dsc1.bg_grad.stops[1].frac  = 255;                       // 终点位置 (100%)
-    
-    rect_dsc1.radius = 240;                      
-    lv_area_t area1 = {-50, -50, 480, 480};     
-    lv_draw_rect(&layer, &rect_dsc1, &area1);
-
-    // ==================== 修改部分：色块 2 渐变配置 ====================
-    lv_draw_rect_dsc_t rect_dsc2;
-    lv_draw_rect_dsc_init(&rect_dsc2);
-    rect_dsc2.bg_color = lv_color_hex(0x0369A1); 
-    rect_dsc2.bg_grad.dir = LV_GRAD_DIR_HOR;     
-    
-    // LVGL 9.2 正确的数组赋值方式
-    rect_dsc2.bg_grad.stops_count = 2;                             // 共有 2 个颜色点
-    rect_dsc2.bg_grad.stops[0].color = lv_color_hex(0x0369A1);     // 起点颜色
-    rect_dsc2.bg_grad.stops[0].opa   = LV_OPA_50;                  
-    rect_dsc2.bg_grad.stops[0].frac  = 0;                         
-    
-    rect_dsc2.bg_grad.stops[1].color = lv_color_hex(0x05060C);     // 终点颜色
-    rect_dsc2.bg_grad.stops[1].opa   = LV_OPA_TRANSP;              
-    rect_dsc2.bg_grad.stops[1].frac  = 255;                       
-    
-    rect_dsc2.radius = 260;
-    lv_area_t area2 = {350, 50, 900, 530};
-    lv_draw_rect(&layer, &rect_dsc2, &area2);
-
-    // 4. 结束并刷新画布图层
-    lv_canvas_finish_layer(canvas, &layer);
 }
 
 // ==================== 4. 主菜单页面初始化 ====================
 void ui_menu_init(void)
 {
+    if (func_group) {
+        lv_group_del(func_group);
+        func_group = NULL;
+    }
+    if (func_page_scr) {
+        lv_obj_delete(func_page_scr);
+        func_page_scr = NULL;
+    }
+    if (menu_group) {
+        lv_group_del(menu_group);
+        menu_group = NULL;
+    }
+    lv_indev_set_group(g_indevKeyPad, NULL);
+
+    s_menu_page = 0;
+    s_lock_tips = NULL;
+
     main_menu_scr = lv_obj_create(NULL);
     lv_screen_load(main_menu_scr);
 
@@ -204,9 +159,14 @@ void ui_menu_init(void)
     lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_gap(container, 40, 0);
 
-    // 定义需要用到的 3 组文本数据
-    const void * icons[] = {&menu_upgrade, &menu_logs, &menu_reset};
-    const char * texts[3]   = {get_string(language, TEXT_MENU_UPGRADE), get_string(language, TEXT_MENU_LOGS), get_string(language, TEXT_MENU_FACTORY_RESET)};
+    // 定义需要用到的 3 组文本与图标数据
+    const char * icons[] = {LV_SYMBOL_DOWNLOAD, LV_SYMBOL_SAVE, LV_SYMBOL_REFRESH};
+    const char * texts[3] = {get_string(language, TEXT_MENU_UPGRADE), get_string(language, TEXT_MENU_LOGS), get_string(language, TEXT_MENU_FACTORY_RESET)};
+    const lv_color_t icon_colors[] = {
+        lv_color_hex(0x60A95F),
+        lv_color_hex(0xD4A53F),
+        lv_color_hex(0xC45C5C),
+    };
     lv_obj_t * cards[3];
 
     // 定义卡片的高级平滑样式过渡，120毫秒完成切换
@@ -230,25 +190,50 @@ void ui_menu_init(void)
                             LV_FLEX_ALIGN_CENTER);
         lv_obj_set_style_pad_gap(cards[i], 0, 0); // 两个半区无缝拼接
 
-        // === 默认未选中状态样式（无阴影、设置 4px 透明边框占位） ===
+        // === 默认未选中状态样式（无阴影、4px 透明边框占位，避免选中时布局跳动） ===
         lv_obj_set_style_bg_color(cards[i], lv_color_white(), LV_PART_MAIN);
         lv_obj_set_style_bg_opa(cards[i], LV_OPA_10, LV_PART_MAIN); 
-        lv_obj_set_style_radius(cards[i], 24, LV_PART_MAIN);
+        lv_obj_set_style_radius(cards[i], 30, LV_PART_MAIN);
         lv_obj_set_style_shadow_width(cards[i], 0, LV_PART_MAIN);
 
         lv_obj_set_style_border_color(cards[i], lv_color_white(), LV_PART_MAIN);
-        lv_obj_set_style_border_width(cards[i], 4, LV_PART_MAIN);
+        lv_obj_set_style_border_width(cards[i], 1, LV_PART_MAIN);
         lv_obj_set_style_border_opa(cards[i], LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_set_style_outline_width(cards[i], 0, LV_PART_MAIN);
+        lv_obj_set_style_outline_width(cards[i], 0, LV_STATE_FOCUSED);
+        lv_obj_set_style_outline_width(cards[i], 0, LV_STATE_FOCUS_KEY);
 
-        // lv_obj_set_style_transition(cards[i], &trans, LV_PART_MAIN);
+        static lv_style_transition_dsc_t card_trans;
+        static const lv_style_prop_t card_trans_props[] = {
+            LV_STYLE_BG_OPA,
+            LV_STYLE_BORDER_OPA,
+            LV_STYLE_BORDER_COLOR,
+            LV_STYLE_SHADOW_WIDTH,
+            LV_STYLE_SHADOW_COLOR,
+            LV_STYLE_TRANSLATE_Y,
+            0
+        };
+        lv_style_transition_dsc_init(&card_trans, card_trans_props, lv_anim_path_ease_out, 120, 0, NULL);
+        lv_obj_set_style_transition(cards[i], &card_trans, LV_PART_MAIN);
 
-        // === 键盘选中（FOCUSED）高亮样式 ===
+        // === 键盘选中（FOCUSED）高亮样式：4px 白色粗边框 ===
         lv_obj_set_style_bg_opa(cards[i], LV_OPA_20, LV_STATE_FOCUSED); 
-        // lv_obj_set_style_border_color(cards[i], lv_color_hex(0x3B82F6), LV_STATE_FOCUSED); 
+        lv_obj_set_style_bg_color(cards[i], lv_color_hex(0xFFFFFF), LV_STATE_FOCUSED);
         lv_obj_set_style_border_color(cards[i], lv_color_hex(0xFFFFFF), LV_STATE_FOCUSED); 
-        lv_obj_set_style_border_opa(cards[i], LV_OPA_30, LV_STATE_FOCUSED);
-        lv_obj_set_style_border_width(cards[i], 2, LV_STATE_FOCUSED);
-        lv_obj_set_style_shadow_width(cards[i], 0, LV_STATE_FOCUSED);                       
+        lv_obj_set_style_border_width(cards[i], 1, LV_STATE_FOCUSED);
+        lv_obj_set_style_border_opa(cards[i], LV_OPA_80, LV_STATE_FOCUSED);
+        lv_obj_set_style_shadow_color(cards[i], lv_color_hex(0x93C5FD), LV_STATE_FOCUSED);
+        lv_obj_set_style_shadow_width(cards[i], 28, LV_STATE_FOCUSED);
+        lv_obj_set_style_shadow_opa(cards[i], LV_OPA_30, LV_STATE_FOCUSED);
+        lv_obj_set_style_translate_y(cards[i], -4, LV_STATE_FOCUSED);
+
+        // 按下时只保留阴影和位移，边框宽度固定不参与状态切换。
+        lv_obj_set_style_shadow_width(cards[i], 28, LV_STATE_PRESSED);
+        lv_obj_set_style_translate_y(cards[i], -4, LV_STATE_PRESSED);
+        lv_obj_set_style_shadow_width(cards[i], 28, LV_STATE_FOCUSED | LV_STATE_PRESSED);
+        lv_obj_set_style_translate_y(cards[i], -4, LV_STATE_FOCUSED | LV_STATE_PRESSED);
+        lv_obj_set_style_border_width(cards[i], 4, LV_STATE_FOCUSED | LV_STATE_PRESSED);
+        lv_obj_set_style_border_opa(cards[i], LV_OPA_80, LV_STATE_FOCUSED | LV_STATE_PRESSED);
 
         // ----------------------------------------------------
         // 【上半分区】：高度 140px，锁死图标位置
@@ -265,9 +250,12 @@ void ui_menu_init(void)
                             LV_FLEX_ALIGN_CENTER);
         lv_obj_set_style_pad_bottom(upper_half, 10, LV_PART_MAIN); // 距离中轴线留 10 像素间距
 
-        // 创建 64x64 图像控件
-        lv_obj_t * icon_img = lv_image_create(upper_half);
-        lv_image_set_src(icon_img, icons[i]); 
+        // 创建 64x64 图标符号控件
+        lv_obj_t * icon_label = lv_label_create(upper_half);
+        lv_label_set_text(icon_label, icons[i]);
+        lv_obj_set_style_text_font(icon_label, &lv_font_montserrat_48, LV_PART_MAIN);
+        lv_obj_set_style_text_color(icon_label, icon_colors[i], LV_PART_MAIN);
+        lv_obj_set_style_text_color(icon_label, lv_color_hex(0xFFFFFF), LV_STATE_FOCUSED);
 
         // ----------------------------------------------------
         // 【下半分区】：高度 140px，负责文字排版
@@ -283,21 +271,21 @@ void ui_menu_init(void)
                             LV_FLEX_ALIGN_CENTER,    // 横向：水平居中
                             LV_FLEX_ALIGN_CENTER);
         
-        // 【核心细节优化】：在下半区的底部，强行垫高 25 像素的内边距 (pad_bottom)
-        // 这样文字在下半区计算垂直居中时，会被整体均匀地往上顶起 25 像素，完美靠近上方的图标！
-        // 如果你觉得上移还不够，可以把 25 改成 30 或 35；如果上移太多，可以改成 15。
-        lv_obj_set_style_pad_bottom(lower_half, 25, LV_PART_MAIN);
+        // 使用更稳的下内边距，让文案在不同长度下保持更稳定的垂直位置。
+        lv_obj_set_style_pad_bottom(lower_half, 18, LV_PART_MAIN);
 
         // 创建文本标签
         lv_obj_t * label = lv_label_create(lower_half);
         lv_label_set_text(label, texts[i]); 
         
-        lv_obj_set_width(label, LV_PCT(90));
+        lv_obj_set_width(label, LV_PCT(88));
         lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
         lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN); 
+        lv_obj_set_style_text_line_space(label, 4, LV_PART_MAIN);
 
         lv_obj_set_style_text_font(label, &lv_font_puhui_40, LV_PART_MAIN);
         lv_obj_set_style_text_color(label, lv_color_hex(0xE2E8F0), LV_PART_MAIN);
+        lv_obj_set_style_text_color(label, lv_color_hex(0xFFFFFF), LV_STATE_FOCUSED);
 
         lv_obj_remove_flag(cards[i], LV_OBJ_FLAG_SCROLLABLE);       // 禁止滚动
         lv_obj_remove_flag(cards[i], LV_OBJ_FLAG_SCROLL_ON_FOCUS); // 聚焦时不进行自动滚动对齐
@@ -312,6 +300,9 @@ void ui_menu_init(void)
 
     // 默认聚焦到第一个卡片
     lv_group_focus_obj(cards[0]);
+
+    rtt_cli_bind_reload(ui_menu_lang_reload);
+    factory_mode_hotkey_enable(1);
 }
 
 // ==================== 5. 辅助功能页公共按键指引 ====================
@@ -338,6 +329,201 @@ static void create_top_key_guide(lv_obj_t *parent, const char *text, int align_r
     }
 }
 
+// ==================== 5.1 子页创建（供菜单进入 / 语言刷新复用） ====================
+static void open_logs_page(void)
+{
+    if (func_group) {
+        lv_group_del(func_group);
+        func_group = NULL;
+    }
+    if (func_page_scr) {
+        lv_obj_delete(func_page_scr);
+        func_page_scr = NULL;
+    }
+
+    func_group = lv_group_create();
+    lv_indev_set_group(g_indevKeyPad, func_group);
+
+    func_page_scr = lv_obj_create(NULL);
+    lv_screen_load(func_page_scr);
+
+    draw_static_gradient_bg(func_page_scr);
+
+    lv_obj_t *surface = lv_obj_create(func_page_scr);
+    lv_obj_set_size(surface, LV_PCT(80), LV_PCT(80));
+    lv_obj_center(surface);
+    lv_obj_set_style_bg_color(surface, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(surface, LV_OPA_10, LV_PART_MAIN);
+    lv_obj_set_style_radius(surface, 24, LV_PART_MAIN);
+    lv_obj_set_style_border_width(surface, 2, LV_PART_MAIN);
+    lv_obj_set_style_border_color(surface, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_border_opa(surface, LV_OPA_20, LV_PART_MAIN);
+    lv_obj_set_style_shadow_width(surface, 24, LV_PART_MAIN);
+    lv_obj_set_style_shadow_color(surface, lv_color_hex(0x020205), LV_PART_MAIN);
+    lv_obj_set_style_shadow_opa(surface, LV_OPA_50, LV_PART_MAIN);
+    lv_obj_set_style_shadow_offset_y(surface, 8, LV_PART_MAIN);
+    lv_obj_remove_flag(surface, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(surface, 0, LV_PART_MAIN);
+
+    lv_obj_t *back_img = lv_image_create(surface);
+    lv_image_set_src(back_img, &menu_back);
+    lv_obj_set_style_image_opa(back_img, LV_OPA_90, LV_PART_MAIN);
+    lv_obj_align(back_img, LV_ALIGN_TOP_LEFT, 14, 14);
+
+    lv_obj_t *center_cont = lv_obj_create(surface);
+    lv_obj_remove_style_all(center_cont);
+    lv_obj_set_size(center_cont, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_center(center_cont);
+    lv_obj_set_layout(center_cont, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(center_cont, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(center_cont, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_gap(center_cont, 25, 0);
+
+    lv_obj_t *page_icon = lv_label_create(center_cont);
+    lv_label_set_text(page_icon, LV_SYMBOL_SAVE);
+    lv_obj_set_style_text_font(page_icon, &lv_font_montserrat_48, LV_PART_MAIN);
+    lv_obj_set_style_text_color(page_icon, lv_color_hex(0xD4A53F), LV_PART_MAIN);
+
+    lv_obj_t *tips = lv_label_create(center_cont);
+    lv_label_set_text(tips, get_string(language, TEXT_LOGS_NOTICE));
+    lv_obj_set_width(tips, LV_PCT(88));
+    lv_label_set_long_mode(tips, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_font(tips, &lv_font_puhui_40, LV_PART_MAIN);
+    lv_obj_set_style_text_color(tips, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_text_line_space(tips, 20, LV_PART_MAIN);
+    lv_obj_set_style_text_align(tips, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+
+    lv_group_add_obj(func_group, func_page_scr);
+    lv_group_focus_obj(func_page_scr);
+    lv_obj_add_event_cb(func_page_scr, page_usb_event_cb, LV_EVENT_KEY, NULL);
+
+    s_menu_page = 1;
+    rtt_cli_bind_reload(ui_menu_lang_reload);
+    factory_mode_hotkey_enable(1);
+}
+
+static void open_factory_page(void)
+{
+    if (func_group) {
+        lv_group_del(func_group);
+        func_group = NULL;
+    }
+    if (func_page_scr) {
+        lv_obj_delete(func_page_scr);
+        func_page_scr = NULL;
+    }
+
+    func_group = lv_group_create();
+    lv_indev_set_group(g_indevKeyPad, func_group);
+
+    func_page_scr = lv_obj_create(NULL);
+    lv_screen_load(func_page_scr);
+
+    draw_static_gradient_bg(func_page_scr);
+
+    lv_obj_t *surface = lv_obj_create(func_page_scr);
+    lv_obj_set_size(surface, LV_PCT(80), LV_PCT(80));
+    lv_obj_center(surface);
+    lv_obj_set_style_bg_color(surface, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(surface, LV_OPA_10, LV_PART_MAIN);
+    lv_obj_set_style_radius(surface, 24, LV_PART_MAIN);
+    lv_obj_set_style_border_width(surface, 2, LV_PART_MAIN);
+    lv_obj_set_style_border_color(surface, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_border_opa(surface, LV_OPA_20, LV_PART_MAIN);
+    lv_obj_set_style_shadow_width(surface, 24, LV_PART_MAIN);
+    lv_obj_set_style_shadow_color(surface, lv_color_hex(0x020205), LV_PART_MAIN);
+    lv_obj_set_style_shadow_opa(surface, LV_OPA_50, LV_PART_MAIN);
+    lv_obj_set_style_shadow_offset_y(surface, 8, LV_PART_MAIN);
+    lv_obj_remove_flag(surface, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(surface, 0, LV_PART_MAIN);
+
+    lv_obj_t *back_img = lv_image_create(surface);
+    lv_image_set_src(back_img, &menu_back);
+    lv_obj_set_style_image_opa(back_img, LV_OPA_90, LV_PART_MAIN);
+    lv_obj_align(back_img, LV_ALIGN_TOP_LEFT, 14, 14);
+
+    lv_obj_t *center_cont = lv_obj_create(surface);
+    lv_obj_remove_style_all(center_cont);
+    lv_obj_set_size(center_cont, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_center(center_cont);
+    lv_obj_set_layout(center_cont, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(center_cont, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(center_cont, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_gap(center_cont, 25, 0);
+
+    lv_obj_t *page_icon = lv_label_create(center_cont);
+    lv_label_set_text(page_icon, LV_SYMBOL_REFRESH);
+    lv_obj_set_style_text_font(page_icon, &lv_font_montserrat_48, LV_PART_MAIN);
+    lv_obj_set_style_text_color(page_icon, lv_color_hex(0xC45C5C), LV_PART_MAIN);
+
+    lv_obj_t *tips = lv_label_create(center_cont);
+    lv_label_set_text(tips, get_string(language, TEXT_FCT_RESET_COMFIRM));
+    lv_obj_set_style_text_font(tips, &lv_font_puhui_40, LV_PART_MAIN);
+    lv_obj_set_style_text_color(tips, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_text_line_space(tips, 20, LV_PART_MAIN);
+    lv_obj_set_style_text_align(tips, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+
+    lv_group_add_obj(func_group, func_page_scr);
+    lv_group_focus_obj(func_page_scr);
+    lv_obj_add_event_cb(func_page_scr, page_factory_event_cb, LV_EVENT_KEY, NULL);
+
+    s_menu_page = 2;
+    rtt_cli_bind_reload(ui_menu_lang_reload);
+    factory_mode_hotkey_enable(1);
+}
+
+static void open_factory_lock_page(void)
+{
+    if (func_group) {
+        lv_group_del(func_group);
+        func_group = NULL;
+    }
+    if (func_page_scr) {
+        lv_obj_delete(func_page_scr);
+        func_page_scr = NULL;
+    }
+
+    lv_obj_t *lock_scr = lv_obj_create(NULL);
+    lv_obj_set_style_bg_color(lock_scr, lv_color_hex(0x05060C), LV_PART_MAIN);
+    lv_screen_load(lock_scr);
+    lv_indev_set_group(g_indevKeyPad, NULL);
+
+    lv_obj_t *spinner = lv_spinner_create(lock_scr);
+    lv_obj_set_size(spinner, 100, 100);
+    lv_obj_center(spinner);
+    lv_obj_set_style_arc_color(spinner, lv_color_hex(0xC45C5C), LV_PART_INDICATOR);
+
+    s_lock_tips = lv_label_create(lock_scr);
+    lv_label_set_text(s_lock_tips, get_string(language, TEXT_FCT_RESET_PROCESS));
+    lv_obj_set_style_text_font(s_lock_tips, &lv_font_puhui_42, LV_PART_MAIN);
+    lv_obj_set_style_text_color(s_lock_tips, lv_color_hex(0xC0C0C0), LV_PART_MAIN);
+    lv_obj_center(s_lock_tips);
+    lv_obj_set_y(s_lock_tips, 90);
+
+    s_menu_page = 3;
+    rtt_cli_bind_reload(ui_menu_lang_reload);
+    factory_mode_hotkey_enable(1);
+}
+
+static void ui_menu_lang_reload(void)
+{
+    int page = s_menu_page;
+
+    if (page == 3) {
+        if (s_lock_tips) {
+            lv_label_set_text(s_lock_tips, get_string(language, TEXT_FCT_RESET_PROCESS));
+        }
+        return;
+    }
+
+    ui_menu_init();
+    if (page == 1) {
+        open_logs_page();
+    } else if (page == 2) {
+        open_factory_page();
+    }
+}
+
 // ==================== 6. 主菜单业务触发与事件路由 ====================
 static void menu_btn_event_cb(lv_event_t *e)
 {
@@ -361,98 +547,15 @@ static void menu_btn_event_cb(lv_event_t *e)
             /* -------- [功能一]: 进入固件更新 -------- */
             lv_indev_set_group(g_indevKeyPad, NULL); 
             lv_group_delete(menu_group);
-            // usb_ota_mode(); 
+            menu_group = NULL;
             menu_select = 1;
         } 
         else if (id == 2) {
-            /* -------- [功能二]: 进入全屏静态渐变 USB LOGS 界面 -------- */
-            func_group = lv_group_create();
-            lv_indev_set_group(g_indevKeyPad, func_group);
-
-            func_page_scr = lv_obj_create(NULL);
-            lv_screen_load(func_page_scr);
-
-            // 1. 绘制静态渐变背景，左上方放置物理按键 < 引导
-            draw_static_gradient_bg(func_page_scr);
-
-            lv_obj_t * back_img = lv_image_create(func_page_scr);
-            lv_image_set_src(back_img, &menu_back);
-            lv_obj_set_align(back_img, LV_ALIGN_TOP_LEFT);
-            lv_obj_set_pos(back_img, 30, 20); // 严格保持在原先左上角的物理按键对应位置
-
-            // 2. 创建垂直排列容器（实现中上图标，下方提示语）
-            lv_obj_t * center_cont = lv_obj_create(func_page_scr);
-            lv_obj_remove_style_all(center_cont); // 变成透明画布
-            lv_obj_set_size(center_cont, 600, LV_SIZE_CONTENT);
-            lv_obj_center(center_cont);
-            lv_obj_set_layout(center_cont, LV_LAYOUT_FLEX);
-            lv_obj_set_flex_flow(center_cont, LV_FLEX_FLOW_COLUMN);
-            lv_obj_set_flex_align(center_cont, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-            lv_obj_set_style_pad_gap(center_cont, 25, 0); // 图标与文字的间距
-
-            // 3. 【核心新增】：在中上方创建 USB LOGS 专属大图标
-            lv_obj_t * page_icon = lv_img_create(center_cont);
-            lv_image_set_src(page_icon, &menu_logs);
-
-            // 4. 在图标下方创建提示语
-            lv_obj_t * tips = lv_label_create(center_cont);
-            lv_label_set_text(tips, get_string(language, TEXT_LOGS_NOTICE));
-            lv_obj_set_style_text_font(tips, &lv_font_puhui_40, LV_PART_MAIN);
-            lv_obj_set_style_text_color(tips, lv_color_white(), LV_PART_MAIN);
-            lv_obj_set_style_text_line_space(tips, 20, LV_PART_MAIN); 
-            lv_obj_set_style_text_align(tips, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-
-            // 5. 绑定纯按键监听
-            lv_group_add_obj(func_group, func_page_scr);
-            lv_group_focus_obj(func_page_scr);
-            lv_obj_add_event_cb(func_page_scr, page_usb_event_cb, LV_EVENT_KEY, NULL);
-
-            // /* USB MSD MODE. */
-            // usb_log_mode();
+            open_logs_page();
             menu_select = 2;
         } 
         else if (id == 3) {
-            /* -------- [功能三]: 进入全屏静态渐变 FACTORY RESET 界面 -------- */
-            func_group = lv_group_create();
-            lv_indev_set_group(g_indevKeyPad, func_group);
-
-            func_page_scr = lv_obj_create(NULL);
-            lv_screen_load(func_page_scr);
-
-            // 1. 绘制静态渐变背景，顶部放置 x 和 ✓ 指引
-            draw_static_gradient_bg(func_page_scr);
-
-            lv_obj_t * back_img = lv_image_create(func_page_scr);
-            lv_image_set_src(back_img, &menu_back);
-            lv_obj_set_align(back_img, LV_ALIGN_TOP_LEFT);
-            lv_obj_set_pos(back_img, 30, 20); // 严格保持在原先左上角的物理按键对应位置 
-
-            // 2. 创建垂直排列容器
-            lv_obj_t * center_cont = lv_obj_create(func_page_scr);
-            lv_obj_remove_style_all(center_cont);
-            lv_obj_set_size(center_cont, 600, LV_SIZE_CONTENT);
-            lv_obj_center(center_cont);
-            lv_obj_set_layout(center_cont, LV_LAYOUT_FLEX);
-            lv_obj_set_flex_flow(center_cont, LV_FLEX_FLOW_COLUMN);
-            lv_obj_set_flex_align(center_cont, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-            lv_obj_set_style_pad_gap(center_cont, 25, 0);
-
-            // 3. 【核心新增】：在中上方创建 FACTORY RESET 专属大图标
-            lv_obj_t * page_icon = lv_img_create(center_cont);
-            lv_image_set_src(page_icon, &menu_reset);
-
-            // 4. 在图标下方创建警告提示语
-            lv_obj_t * tips = lv_label_create(center_cont);
-            lv_label_set_text(tips, get_string(language, TEXT_FCT_RESET_COMFIRM));
-            lv_obj_set_style_text_font(tips, &lv_font_puhui_40, LV_PART_MAIN);
-            lv_obj_set_style_text_color(tips, lv_color_white(), LV_PART_MAIN);
-            lv_obj_set_style_text_line_space(tips, 20, LV_PART_MAIN); 
-            lv_obj_set_style_text_align(tips, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-
-            // 5. 绑定纯按键监听
-            lv_group_add_obj(func_group, func_page_scr);
-            lv_group_focus_obj(func_page_scr);
-            lv_obj_add_event_cb(func_page_scr, page_factory_event_cb, LV_EVENT_KEY, NULL);
+            open_factory_page();
         }
     }
 }
@@ -470,6 +573,9 @@ static void page_usb_event_cb(lv_event_t *e)
         lv_obj_delete(func_page_scr);
         func_page_scr = NULL;
 
+        s_menu_page = 0;
+        rtt_cli_bind_reload(ui_menu_lang_reload);
+
         /* 停止 USB. */
         usb_stop();
     }
@@ -485,30 +591,14 @@ static void page_factory_event_cb(lv_event_t *e)
         lv_screen_load(main_menu_scr);
         lv_obj_delete(func_page_scr);
         func_page_scr = NULL;
+
+        s_menu_page = 0;
+        rtt_cli_bind_reload(ui_menu_lang_reload);
         return;
     }
     if (key == LV_KEY_ENTER)
     {
-        lv_group_delete(func_group);
-        func_group = NULL;
-        lv_obj_delete(func_page_scr);
-        func_page_scr = NULL;
-        lv_obj_t *lock_scr = lv_obj_create(NULL);
-        lv_obj_set_style_bg_color(lock_scr, lv_color_hex(0x05060C), LV_PART_MAIN);
-        lv_screen_load(lock_scr);
-        lv_indev_set_group(g_indevKeyPad, NULL);
-        lv_obj_t *spinner = lv_spinner_create(lock_scr);
-        lv_obj_set_size(spinner, 100, 100);
-        lv_obj_center(spinner);
-        // lv_obj_set_style_arc_color(spinner, lv_color_hex(0xEF4444), LV_PART_INDICATOR);
-        lv_obj_set_style_arc_color(spinner, lv_color_hex(0x3B82F6), LV_PART_INDICATOR);
-        lv_obj_t *tips = lv_label_create(lock_scr);
-        lv_label_set_text(tips, get_string(language, TEXT_FCT_RESET_PROCESS));
-        lv_obj_set_style_text_font(tips, &lv_font_puhui_42, LV_PART_MAIN);
-        lv_obj_set_style_text_color(tips, lv_color_hex(0xC0C0C0), LV_PART_MAIN);
-        lv_obj_center(tips);
-        lv_obj_set_y(tips, 90);
-
+        open_factory_lock_page();
         menu_select = 3;
     }
 }

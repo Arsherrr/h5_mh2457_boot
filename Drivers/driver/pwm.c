@@ -26,8 +26,8 @@
 
 /* 配置为 2kHz */
 #define BEEP_PWM_PRESCALER          83U
-#define BEEP_PWM_PERIOD             499U
-#define BEEP_PWM_DUTY_PERCENT       50U
+#define BEEP_PWM_PERIOD             999U
+#define BEEP_PWM_DUTY_PERCENT       100U
 
 static uint32_t pwm_map_percent_to_pulse(uint32_t period, uint8_t percent)
 {

@@ -344,7 +344,7 @@ void MSDSetup(USBDeviceStruct* device)
     #else
     //Flash_FileSystem_area_init(FLASH_FILESYSTEM_ADDR,FLASH_FILESYSTEM_SIZE);
     
-    vfs_init((vfs_filename_t) {"H5-Disk"}, FLASH_FILESYSTEM_SIZE);
+    vfs_init((vfs_filename_t) {"H5"}, FLASH_FILESYSTEM_SIZE);
 
     // /* 获取文件大小. */
     // int fsize = lfs_get_file_size(LFS_TEST_PATH);

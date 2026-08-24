@@ -1,0 +1,24 @@
+# UTF-8
+# H5 bootloader firmware merge configuration
+
+# First MCU firmware. This is the firmware forwarded to AT425.
+bin1_path: "./bin/KDIAGV2.0.X.BIN"
+
+# Second MCU firmware. This is the H5 application firmware written by this bootloader.
+bin2_path: "./bin/H5.bin"
+
+# Upgrade address for the first MCU firmware in the merge header.
+upgrade_address: "0x08008800"
+
+# Output ROM file name without .rom suffix.
+output_name: "./output/h5_fw"
+
+# Merge header magic used by update.c at offset 0x3AC.
+magic: "0x5A5A5A5A"
+
+# AES-128-GCM key. Must match AES_GCM_KEY in Drivers/driver/update.h.
+aes_gcm_key: "000102030405060708090A0B0C0D0E0F"
+
+# AES-GCM nonce. Must be 12 bytes / 24 hex characters.
+# Change this value for each release package.
+aes_gcm_nonce: "00112233445566778899AABB"

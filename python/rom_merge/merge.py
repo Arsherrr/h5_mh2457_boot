@@ -1,27 +1,9 @@
 import os
 import struct
 import yaml
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 
 HEADER_SIZE = 4096
-AES_GCM_KEY_SIZE = 16
-AES_GCM_NONCE_SIZE = 12
-AES_GCM_TAG_SIZE = 16
-
-
-def _parse_hex_bytes(value, size, name):
-    if isinstance(value, bytes):
-        data = value
-    elif isinstance(value, str):
-        text = value.strip().replace("0x", "").replace(" ", "").replace(":", "").replace("-", "")
-        data = bytes.fromhex(text)
-    else:
-        raise ValueError(f"{name} 必须是 hex 字符串")
-
-    if len(data) != size:
-        raise ValueError(f"{name} 长度必须是 {size} 字节，当前是 {len(data)} 字节")
-    return data
 
 
 def pack_rom_final(config_path="config.yaml"):
@@ -41,9 +23,6 @@ def pack_rom_final(config_path="config.yaml"):
     upgrade_addr_str = config.get("upgrade_address")
     output_name = config.get("output_name")
     magic_str = config.get("magic", "0x5A5A5A5A")
-    aes_key = _parse_hex_bytes(config.get("aes_gcm_key"), AES_GCM_KEY_SIZE, "aes_gcm_key")
-    aes_nonce = _parse_hex_bytes(config.get("aes_gcm_nonce"), AES_GCM_NONCE_SIZE, "aes_gcm_nonce")
-
     if not os.path.exists(bin1_path) or not os.path.exists(bin2_path):
         print("[ERROR] Can not found file: {bin1_path} or {bin2_path}")
         return
@@ -84,16 +63,13 @@ def pack_rom_final(config_path="config.yaml"):
     padding_size = (4096 - remainder) % 4096
     padding_data = b"\xFF" * padding_size
 
-    plaintext_data = bytes(header_data) + bin1_data + padding_data + bin2_data
-    encrypted_data = AESGCM(aes_key).encrypt(aes_nonce, plaintext_data, None)
-    cipher_data = encrypted_data[:-AES_GCM_TAG_SIZE]
-    tag_data = encrypted_data[-AES_GCM_TAG_SIZE:]
-
-    # 6. 拼装输出 Rom 文件: 整包密文 + 16 字节 GCM Tag
+    # 6. 拼装输出 Rom 文件
     output_path = f"{output_name}.rom"
     with open(output_path, "wb") as f_out:
-        f_out.write(cipher_data)
-        f_out.write(tag_data)
+        f_out.write(header_data)
+        f_out.write(bin1_data)
+        f_out.write(padding_data)
+        f_out.write(bin2_data)
 
     print("=" * 50)
     print(f"成功生成 ROM 文件: {output_path}")
@@ -104,10 +80,7 @@ def pack_rom_final(config_path="config.yaml"):
     print(
         f"0x3B9 ~ 0x3C1 (9字节): MCU 循环校验区 = 均为 {hex(header_data[0x3B9])}"
     )
-    print(f"AES-GCM 明文长度 = {len(plaintext_data)} 字节")
-    print(f"AES-GCM 密文长度 = {len(cipher_data)} 字节")
-    print(f"AES-GCM Nonce = {aes_nonce.hex()}")
-    print(f"AES-GCM Tag = {tag_data.hex()}")
+    print(f"明文 ROM 大小 = {HEADER_SIZE + len(bin1_data) + len(padding_data) + len(bin2_data)} 字节")
     print("=" * 50)
 
 

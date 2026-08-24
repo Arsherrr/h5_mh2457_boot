@@ -4,13 +4,25 @@
 #include "memory.h"
 #include <stdint.h>
 
+#define LOGO_HDR_MAGIC  ( 0X4F474F4C ) /* b'LOGO' */
+#define TEXT_HDR_MAGIC  ( 0x54584554 ) /* b'TEXT' */
+#define RES_MAGIC       ( 0x5345524A ) /* b'JRES' */
+
 /* LOGO 文件包头. */
 typedef struct __attribute__((packed)) {
     uint32_t magic;
     uint16_t width;
     uint16_t height;
     uint32_t size;
+    uint32_t type;
 } logo_header_t;
+
+/* TEXT 文件包头. */
+typedef struct __attribute__((packed)) {
+    uint32_t magic;
+    uint32_t version;
+    uint32_t size;
+} text_header_t;
 
 /* Bin 文件包头. */
 typedef struct __attribute__((packed)) {

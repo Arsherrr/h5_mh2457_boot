@@ -90,3 +90,49 @@ u16 crc16_hw(u8* buf, u32 len)
     return (CRC->DR);
 }
 
+void crc32_hw_init(void)
+{
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_CRC, ENABLE);
+    CRC->CSR = 0xCA;
+    CRC->INI = 0xFFFFFFFF;
+    CRC->XOR = 0xFFFFFFFF;
+    CRC_ResetDR();
+}
+
+u32 crc32_hw(u8* buf, u32 len)
+{
+    while (len--)
+    {
+        CRC->DR = *buf++;
+    }
+
+    return CRC->DR;
+}
+
+u32 crc32_flash_hw(u32 addr, u32 len, u8* buf, u32 buf_size)
+{
+    u32 len_tmp;
+
+    if ((buf == NULL) || (buf_size == 0))
+    {
+        return 0xFFFFFFFF;
+    }
+
+    crc32_hw_init();
+
+    while (len)
+    {
+        if (len > buf_size)
+            len_tmp = buf_size;
+        else
+            len_tmp = len;
+
+        memcpy(buf, (void*)addr, len_tmp);
+        crc32_hw(buf, len_tmp);
+        addr += len_tmp;
+        len -= len_tmp;
+    }
+
+    return CRC->DR;
+}
+

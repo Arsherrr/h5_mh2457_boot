@@ -37,7 +37,7 @@ void io_init(void)
     
     GPS_ON_SET(0);
     GPS_EN_SET(0);
-    MCU_EN_SET(0); /* H OFF, L ON. */
+    MCU_EN_SET(1); /* H OFF, L ON. */
     PWR_CTR_SET(1);
 }
 

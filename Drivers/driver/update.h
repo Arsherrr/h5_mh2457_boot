@@ -25,26 +25,44 @@ LOGO [400K]
 //#define ADDR_SN                         (0x81FE000) //存放在AT425
 #define UPD_INFO_SIZE                   (4096)
 #define ADDR_UPD_INFO                   (RES_LOGO_BASE - UPD_INFO_SIZE)
+#define ADDR_APP_CRC_INFO               (ADDR_UPD_INFO - UPD_INFO_SIZE)
 #define PACK_SIZE_MCU                   (4096) //MCU每包数据大小
 #define PACK_SIZE_FLASH                 (4096) //FLASH每包数据大小
 
 #define FLASH_OFFSET_LOGO               (RES_LOGO_BASE) //包含FLASH和LOGO
 #define FLASH_OFFSET_FLASH              (RES_TEXT_BASE)
 
-#define SIZE_LOGO                       (RES_LOGO_BASE - FLASH_OFFSET_FLASH)
-#define SIZE_FLASH                      (FLASH_BASE_ADDR - FLASH_OFFSET_FLASH) /* 从文本地址到文件系统结束. */
+#define SIZE_LOGO                       (RES_TEXT_BASE - RES_LOGO_BASE)
+#define SIZE_FLASH                      (RES_FS_BASE - RES_LOGO_BASE)
 #define SIZE_MCU                        (ADDR_UPD_INFO - ADDR_APP)
 
 #define ADDR_APP_NAME                   (ADDR_APP+0x1000)
 #define ADDR_APP_VER                    (ADDR_APP+0x1000+0x10) //APP版本号所在地址
 #define ADDR_FLASH_VER                  (FLASH_OFFSET_FLASH+0x10) //FLASH版本号所在地址
+#define ADDR_APP_INFO                   (ADDR_APP+0x1000+0x30) //APP信息所在地址
 #define ADDR_APP_CRC                    (ADDR_APP+0x1000+0x30) //APP文件CRC所在地址
 #define ADDR_FLASH_CRC                  (FLASH_OFFSET_FLASH+0x30) //FLASH文件CRC所在地址
 
 #define CRC_ATTRI_CODE                  (0x5C6B2023) //CRC特征码
+#define APP_CRC_INFO_MAGIC              (0x43524341)
+#define APP_CRC_INFO_VERSION            (1)
+
+#define AES_GCM_KEY_SIZE                (16)
+#define AES_GCM_NONCE_SIZE              (12)
+#define AES_GCM_TAG_SIZE                (16)
+#define AES_GCM_KEY                     {0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F}
+#define AES_GCM_NONCE                   {0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88,0x99,0xAA,0xBB}
 
 #define LEN_IAP_NAME                    (4) //产品名称的长度
 
+typedef struct __attribute__((packed)) {
+    u32 magic;
+    u32 version;
+    u32 app_addr;
+    u32 app_size;
+    u32 app_crc;
+    u32 info_crc;
+} app_crc_info_t;
 
 #if (PACK_SIZE_FLASH != 4096)
     #error "PACK_SIZE_FLASH must be 4096"
@@ -78,6 +96,8 @@ LOGO [400K]
 
 void update_handle(void);
 void update_init(void);
+s8 app_crc_info_save(u32 app_size);
+s8 app_crc_info_check(void);
 void beep_on(void);
 void beep_off(void);
 int to_app(void);

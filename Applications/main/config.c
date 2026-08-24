@@ -8,7 +8,7 @@
 extern lfs_t lfs;
 extern void display_set_rotation(uint32_t value);
 
-int language = 2;
+int language = 3; /* 默认英语. */
 int lcd_direction = 0;
 int lcd_brightness = 100;
 int utc_offset = 0;

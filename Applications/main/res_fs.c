@@ -10,7 +10,6 @@
 #define RES_FS_ROOT_PREFIX "customer/H5/res/"
 /* 资源 BIN 的起始地址. */
 #define RES_BIN_BASE_ADDR  (RES_IMG_BASE)
-#define RES_MAGIC          (0x5345524A) /* JRES */
 
 #ifndef LV_FS_MAX_PATH_LENGTH
 #define LV_FS_MAX_PATH_LENGTH 256

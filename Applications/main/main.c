@@ -19,15 +19,17 @@
 #include "usb.h"
 #include "SDRAMBSP.h"
 #include "ui_selftest.h"
+#include "sefltest.h"
+#include "rtt_cli.h"
 
 #ifndef USE_HW_JPEG
 #define USE_HW_JPEG 1
 #endif
 
-#define IS_KEY_ESC()   get_key_state(KEY1)
-#define IS_KEY_UP()    get_key_state(KEY2)
-#define IS_KEY_DOWN()  get_key_state(KEY3)
-#define IS_KEY_ENTER() get_key_state(KEY4)
+#define IS_KEY_ESC()   get_key_state(KEY4)
+#define IS_KEY_UP()    get_key_state(KEY3)
+#define IS_KEY_DOWN()  get_key_state(KEY2)
+#define IS_KEY_ENTER() get_key_state(KEY1)
 
 /* MH2457 没有备份寄存器, 只能用 flash 保存共享信息. */
 #define SM_ADDR   (RES_LOGO_BASE - FLASH_SECTOR_SIZE)
@@ -37,6 +39,8 @@
 typedef enum {
     SM_EVENT_NONE = 0,
     SM_EVENT_OTA,
+    SM_EVENT_FCT_MODE,
+    SM_EVENT_SHUTDOWN,
     SM_EVENT_RESVD = 0xFFFF,
 } sm_event_e;
 
@@ -69,11 +73,34 @@ void beep_off(void)
     pwm_beep_set_percent(0);
 }
 
+/* 上下同时按下后, 松键前仍拦截导航, 避免单键残留带动光标 */
+static int s_factory_combo_guard = 0;
+/* OTA / 系统检测禁用；菜单及其它功能页启用 */
+static int s_factory_hotkey_en = 1;
+
 static void keypad_read(lv_indev_t * indev, lv_indev_data_t * data)
 {
     LV_UNUSED(indev);
 
     data->state = LV_INDEV_STATE_RELEASED;
+
+    /* 上下同时按:菜单光标不动 */
+    if (IS_KEY_UP() && IS_KEY_DOWN()) {
+        if (s_factory_hotkey_en) {
+            s_factory_combo_guard = 1;
+        }
+        return;
+    }
+
+    /* 组合键松开过程:仍按着上或下时也不动光标 */
+    if (s_factory_hotkey_en && s_factory_combo_guard) {
+        if (IS_KEY_UP() || IS_KEY_DOWN()) {
+            return;
+        }
+        s_factory_combo_guard = 0;
+    }
+
+    /* 输密码阶段(ESC/UP):允许光标随键移动 */
 
     if (IS_KEY_UP()) {
         data->key = LV_KEY_LEFT;
@@ -93,9 +120,235 @@ static void keypad_read(lv_indev_t * indev, lv_indev_data_t * data)
 lv_indev_t * g_indevKeyPad = NULL;
 static void lv_indev_init(void)
 {
-	g_indevKeyPad = lv_indev_create(); /* 创建输入设备. */
+    g_indevKeyPad = lv_indev_create(); /* 创建输入设备. */
     lv_indev_set_type(g_indevKeyPad, LV_INDEV_TYPE_KEYPAD); /* 设置为键盘类型. */
-    lv_indev_set_read_cb(g_indevKeyPad, keypad_read); /* 绑定读取回调. */
+}
+
+int to_app(void);
+
+void factory_mode_hotkey_enable(int enable)
+{
+    s_factory_hotkey_en = enable ? 1 : 0;
+    if (!s_factory_hotkey_en) {
+        s_factory_combo_guard = 0;
+    }
+}
+
+static void factory_mode_glow_fade_exec(void *obj, int32_t v)
+{
+    lv_obj_set_style_opa((lv_obj_t *)obj, (lv_opa_t)v, LV_PART_MAIN);
+}
+
+static void factory_mode_glow_anim_ready(lv_anim_t *a)
+{
+    lv_obj_t *glow = (lv_obj_t *)lv_anim_get_user_data(a);
+    if (glow != NULL && lv_obj_is_valid(glow)) {
+        lv_obj_delete(glow);
+    }
+}
+
+static void factory_mode_show_glow(void)
+{
+    lv_obj_t *scr = lv_screen_active();
+    lv_coord_t scr_w = lv_obj_get_width(scr);
+    lv_coord_t scr_h = lv_obj_get_height(scr);
+    /* 留出外圈空间给 shadow/outline, 否则会被屏幕裁掉 */
+    const lv_coord_t margin = 18;
+
+    lv_obj_t *glow = lv_obj_create(scr);
+    lv_obj_remove_style_all(glow);
+    lv_obj_set_size(glow, scr_w - margin * 2, scr_h - margin * 2);
+    lv_obj_center(glow);
+    lv_obj_clear_flag(glow, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_bg_opa(glow, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_radius(glow, 14, LV_PART_MAIN);
+    lv_obj_move_foreground(glow);
+
+    /* 连续柔光:外圈 outline + shadow, 不用多层硬边框 */
+    lv_obj_set_style_outline_color(glow, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_outline_width(glow, 16, LV_PART_MAIN);
+    lv_obj_set_style_outline_pad(glow, 0, LV_PART_MAIN);
+    lv_obj_set_style_outline_opa(glow, LV_OPA_20, LV_PART_MAIN);
+
+    lv_obj_set_style_shadow_color(glow, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_shadow_width(glow, 40, LV_PART_MAIN);
+    lv_obj_set_style_shadow_spread(glow, 8, LV_PART_MAIN);
+    lv_obj_set_style_shadow_opa(glow, LV_OPA_40, LV_PART_MAIN);
+    lv_obj_set_style_shadow_offset_x(glow, 0, LV_PART_MAIN);
+    lv_obj_set_style_shadow_offset_y(glow, 0, LV_PART_MAIN);
+
+    /* 很细的高光芯, 避免生硬粗白框 */
+    lv_obj_set_style_border_color(glow, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_border_width(glow, 2, LV_PART_MAIN);
+    lv_obj_set_style_border_opa(glow, LV_OPA_40, LV_PART_MAIN);
+
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, glow);
+    lv_anim_set_user_data(&a, glow);
+    lv_anim_set_values(&a, LV_OPA_COVER, LV_OPA_TRANSP);
+    lv_anim_set_duration(&a, 360);
+    lv_anim_set_delay(&a, 60);
+    lv_anim_set_exec_cb(&a, factory_mode_glow_fade_exec);
+    lv_anim_set_ready_cb(&a, factory_mode_glow_anim_ready);
+    lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+    lv_anim_start(&a);
+}
+
+static int factory_mode_mark_and_jump_app(void)
+{
+    shared_mem_t sm = {
+        .magic = SM_MAGIC,
+        .event = SM_EVENT_FCT_MODE,
+    };
+
+    if (flash_erase(SM_ADDR - FLASH_BASE_ADDR, FLASH_SECTOR_SIZE) < 0) {
+        return -1;
+    }
+
+    if (flash_write(SM_ADDR - FLASH_BASE_ADDR, (const uint8_t *)&sm, sizeof(sm)) < 0) {
+        return -1;
+    }
+
+    printf("Enter Factory Test Mode.\n");
+    return to_app();
+}
+
+typedef enum {
+    FACTORY_KEY_IDLE = 0,
+    FACTORY_KEY_WAIT_ESC_1,
+    FACTORY_KEY_WAIT_ESC_2,
+    FACTORY_KEY_WAIT_ESC_3,
+    FACTORY_KEY_WAIT_UP_1,
+    FACTORY_KEY_WAIT_UP_2,
+    FACTORY_KEY_GOTO,
+} factory_key_state_e;
+
+#define FACTORY_KEY_DEBOUNCE_MS  80
+#define FACTORY_KEY_TIMEOUT_MS   10000
+
+typedef enum {
+    FACTORY_INPUT_NONE = 0,
+    FACTORY_INPUT_START,
+    FACTORY_INPUT_ESC,
+    FACTORY_INPUT_UP,
+    FACTORY_INPUT_DOWN,
+    FACTORY_INPUT_OTHER,
+} factory_input_e;
+
+static factory_input_e factory_mode_get_input(void)
+{
+    uint8_t up = IS_KEY_UP() ? 1 : 0;
+    uint8_t down = IS_KEY_DOWN() ? 1 : 0;
+    uint8_t esc = IS_KEY_ESC() ? 1 : 0;
+    uint8_t enter = IS_KEY_ENTER() ? 1 : 0;
+
+    if (!up && !down && !esc && !enter) {
+        return FACTORY_INPUT_NONE;
+    }
+
+    if (up && down) {
+        return FACTORY_INPUT_START;
+    }
+
+    if (esc && !up && !down && !enter) {
+        return FACTORY_INPUT_ESC;
+    }
+
+    if (up && !down && !esc && !enter) {
+        return FACTORY_INPUT_UP;
+    }
+
+    if (down && !up && !esc && !enter) {
+        return FACTORY_INPUT_DOWN;
+    }
+
+    return FACTORY_INPUT_OTHER;
+}
+
+static void factory_mode_key_monitor(void)
+{
+    if (!s_factory_hotkey_en) {
+        return;
+    }
+
+    static factory_key_state_e state = FACTORY_KEY_IDLE;
+    static factory_input_e last_input = FACTORY_INPUT_NONE;
+    static factory_input_e stable_input = FACTORY_INPUT_NONE;
+    static factory_input_e handled_input = FACTORY_INPUT_NONE;
+    static uint32_t input_change_tick = 0;
+    static uint32_t password_start_tick = 0;
+
+    factory_input_e input = factory_mode_get_input();
+    uint32_t now = lv_tick_get();
+
+    if (state != FACTORY_KEY_IDLE && now - password_start_tick >= FACTORY_KEY_TIMEOUT_MS) {
+        state = FACTORY_KEY_IDLE;
+    }
+
+    if (input != last_input) {
+        last_input = input;
+        input_change_tick = now;
+        return;
+    }
+
+    if (input != stable_input) {
+        if (now - input_change_tick < FACTORY_KEY_DEBOUNCE_MS) {
+            return;
+        }
+
+        stable_input = input;
+    }
+
+    if (stable_input == FACTORY_INPUT_NONE) {
+        handled_input = FACTORY_INPUT_NONE;
+        return;
+    }
+
+    if (stable_input == handled_input) {
+        return;
+    }
+
+    handled_input = stable_input;
+
+    if (stable_input == FACTORY_INPUT_START) {
+        state = FACTORY_KEY_WAIT_ESC_1;
+        password_start_tick = now;
+        s_factory_combo_guard = 1;
+        factory_mode_show_glow();
+        return;
+    }
+
+    switch (state) {
+    case FACTORY_KEY_IDLE:
+        break;
+
+    case FACTORY_KEY_WAIT_ESC_1:
+    case FACTORY_KEY_WAIT_ESC_2:
+    case FACTORY_KEY_WAIT_ESC_3:
+        if (stable_input == FACTORY_INPUT_ESC) {
+            ++state;
+        } else {
+            state = FACTORY_KEY_IDLE;
+        }
+        break;
+
+    case FACTORY_KEY_WAIT_UP_1:
+    case FACTORY_KEY_WAIT_UP_2:
+        if (stable_input == FACTORY_INPUT_UP) {
+            if (++state == FACTORY_KEY_GOTO) {
+                state = FACTORY_KEY_IDLE;
+                factory_mode_mark_and_jump_app();
+            }
+        } else {
+            state = FACTORY_KEY_IDLE;
+        }
+        break;
+
+    default:
+        state = FACTORY_KEY_IDLE;
+        break;
+    }
 }
 
 extern int menu_select;
@@ -208,6 +461,14 @@ int to_app(void)
             return -1;
         }
 
+        if (check_app_fast_crc_hw() == 0) {
+            return -1;
+        }
+
+        if (app_crc_info_check() != 0) {
+            return -1;
+        }
+
         uint8_t i;
 
         DSI_BACKLIGHT_ON(false);
@@ -268,14 +529,22 @@ extern void ui_menu_init(void);
 
 int main(void)
 {
+    uint8_t app_ok = 0;
+    uint8_t res_ok = 0;
+
     SysTick_Config(SystemCoreClock / 1000);
     SEGGER_RTT_Init();
+    rtt_cli_init();
     delay_us_init();
     key_init();
     io_init();
 
     printf("%s VERSION: %s\n", name, ver);
-    
+
+    /* 上电先做 APP / 资源完整性检查 */
+    app_ok = check_app_integrity();
+    res_ok = check_res_integrity();
+
     if (is_upd_mode()) {
 BOOT:
         printf("Enter Update Mode.\n");
@@ -302,19 +571,28 @@ BOOT:
         if (is_from_app(0)) {
             /* 直接进入 OTA 升级界面. */
             usb_ota_mode();
+        } else if (!app_ok || !res_ok) {
+            /* APP 或资源损坏: 显示自检提示页, 引导升级 */
+            printf("Self-check fail: app=%u res=%u\n", app_ok, res_ok);
+            ui_system_self_check_init(app_ok, res_ok);
         } else {
             /* 主菜单. */
             ui_menu_init();
-            // ui_system_self_check_init(0, 0);
         }
 
         /* 刷新一次. */
         lv_timer_handler();
 
+        /* 防止 ENTER 键不松开. */
+        while (IS_KEY_ENTER());
+        lv_indev_set_read_cb(g_indevKeyPad, keypad_read); /* 绑定读取回调. */
+
         /* 通知 AT32 进入 bootloader. */
         at_enter_boot_mode();
 
         while (is_ota_mode() == 0) {
+            rtt_cli_poll();
+            factory_mode_key_monitor();
             menu_select_handler();
             lv_timer_handler();
         }
@@ -323,14 +601,18 @@ BOOT:
         is_from_app(1);
 
         while (1) {
+            rtt_cli_poll();
+            factory_mode_key_monitor();
             menu_select_handler();
             lv_timer_handler();
             update_handle();
         }
     } else {
         printf("Run to main.\n");
-        if (to_app() == -1) {
-            printf("Run to main failed.\n");
+        if (app_ok && res_ok && to_app() == 0) {
+            /* 已跳转到 APP */
+        } else {
+            printf("Run to main failed. app=%u res=%u\n", app_ok, res_ok);
             goto BOOT;
         }
     }

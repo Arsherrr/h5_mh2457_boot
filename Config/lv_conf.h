@@ -455,13 +455,13 @@
  *https://fonts.google.com/specimen/Montserrat*/
 #define LV_FONT_MONTSERRAT_8 0
 #define LV_FONT_MONTSERRAT_10 0
-#define LV_FONT_MONTSERRAT_12 1
-#define LV_FONT_MONTSERRAT_14 1
+#define LV_FONT_MONTSERRAT_12 0
+#define LV_FONT_MONTSERRAT_14 1  /* LV_FONT_DEFAULT */
 #define LV_FONT_MONTSERRAT_16 0
-#define LV_FONT_MONTSERRAT_18 0
+#define LV_FONT_MONTSERRAT_18 1  /* selftest ✓/✕ */
 #define LV_FONT_MONTSERRAT_20 0
 #define LV_FONT_MONTSERRAT_22 0
-#define LV_FONT_MONTSERRAT_24 1
+#define LV_FONT_MONTSERRAT_24 1  /* menu fallback */
 #define LV_FONT_MONTSERRAT_26 0
 #define LV_FONT_MONTSERRAT_28 0
 #define LV_FONT_MONTSERRAT_30 0
@@ -470,10 +470,10 @@
 #define LV_FONT_MONTSERRAT_36 0
 #define LV_FONT_MONTSERRAT_38 0
 #define LV_FONT_MONTSERRAT_40 0
-#define LV_FONT_MONTSERRAT_42 1
+#define LV_FONT_MONTSERRAT_42 1  /* OTA tips fallback */
 #define LV_FONT_MONTSERRAT_44 0
-#define LV_FONT_MONTSERRAT_46 1
-#define LV_FONT_MONTSERRAT_48 0
+#define LV_FONT_MONTSERRAT_46 0
+#define LV_FONT_MONTSERRAT_48 1  /* menu icons */
 
 /*Demonstrate special features*/
 #define LV_FONT_MONTSERRAT_28_COMPRESSED 0 /*bpp = 3*/
@@ -563,7 +563,7 @@
 
 #define LV_USE_BUTTON 1
 
-#define LV_USE_BUTTONMATRIX 1
+#define LV_USE_BUTTONMATRIX 0
 
 #define LV_USE_CALENDAR 0
 #if LV_USE_CALENDAR
@@ -579,7 +579,7 @@
 #define LV_USE_CALENDAR_CHINESE 0
 #endif    /* LV_USE_CALENDAR */
 
-#define LV_USE_CANVAS 1
+#define LV_USE_CANVAS 0
 
 #define LV_USE_CAROUSEL 0
 
@@ -598,7 +598,7 @@
 #define LV_USE_LABEL 1
 #if LV_USE_LABEL
 /*Enable selecting text of the label*/
-#define LV_LABEL_TEXT_SELECTION 1
+#define LV_LABEL_TEXT_SELECTION 0
 /*Store some extra info in labels to speed up drawing of very long texts*/
 #define LV_LABEL_LONG_TXT_HINT 1
 /*The count of wait chart*/
@@ -615,7 +615,7 @@
 
 #define LV_USE_MENU 0
 
-#define LV_USE_MSGBOX 1
+#define LV_USE_MSGBOX 0
 
 #define LV_USE_ROLLER 0
 
@@ -666,10 +666,10 @@
 #endif    /* LV_USE_THEME_DEFAULT */
 
 /*A very simple theme that is a good starting point for a custom theme*/
-#define LV_USE_THEME_SIMPLE 1
+#define LV_USE_THEME_SIMPLE 0
 
 /*A theme designed for monochrome displays*/
-#define LV_USE_THEME_MONO 1
+#define LV_USE_THEME_MONO 0
 
 /*====================
  * LAYOUTS

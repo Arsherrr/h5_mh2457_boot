@@ -516,6 +516,16 @@
               <FileType>1</FileType>
               <FilePath>..\Applications\main\ui_selftest.c</FilePath>
             </File>
+            <File>
+              <FileName>rtt_cli.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Applications\main\rtt_cli.c</FilePath>
+            </File>
+            <File>
+              <FileName>sefltest.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Applications\main\sefltest.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -555,21 +565,6 @@
               <FileName>text.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Applications\res\text.c</FilePath>
-            </File>
-            <File>
-              <FileName>menu_logs.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Applications\res\menu_logs.c</FilePath>
-            </File>
-            <File>
-              <FileName>menu_reset.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Applications\res\menu_reset.c</FilePath>
-            </File>
-            <File>
-              <FileName>menu_upgrade.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Applications\res\menu_upgrade.c</FilePath>
             </File>
             <File>
               <FileName>menu_back.c</FileName>
@@ -848,6 +843,11 @@
               <FileName>update.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Drivers\driver\update.c</FilePath>
+            </File>
+            <File>
+              <FileName>aes_gcm.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\driver\aes_gcm.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1459,29 +1459,9 @@
               <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font.c</FilePath>
             </File>
             <File>
-              <FileName>lv_font_dejavu_16_persian_hebrew.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_dejavu_16_persian_hebrew.c</FilePath>
-            </File>
-            <File>
               <FileName>lv_font_fmt_txt.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_fmt_txt.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_montserrat_8.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_8.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_montserrat_10.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_10.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_montserrat_12.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_12.c</FilePath>
             </File>
             <File>
               <FileName>lv_font_montserrat_14.c</FileName>
@@ -1489,24 +1469,9 @@
               <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_14.c</FilePath>
             </File>
             <File>
-              <FileName>lv_font_montserrat_16.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_16.c</FilePath>
-            </File>
-            <File>
               <FileName>lv_font_montserrat_18.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_18.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_montserrat_20.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_20.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_montserrat_22.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_22.c</FilePath>
             </File>
             <File>
               <FileName>lv_font_montserrat_24.c</FileName>
@@ -1514,89 +1479,14 @@
               <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_24.c</FilePath>
             </File>
             <File>
-              <FileName>lv_font_montserrat_26.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_26.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_montserrat_28.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_28.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_montserrat_28_compressed.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_28_compressed.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_montserrat_30.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_30.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_montserrat_32.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_32.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_montserrat_34.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_34.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_montserrat_36.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_36.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_montserrat_38.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_38.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_montserrat_40.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_40.c</FilePath>
-            </File>
-            <File>
               <FileName>lv_font_montserrat_42.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_42.c</FilePath>
             </File>
             <File>
-              <FileName>lv_font_montserrat_44.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_44.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_montserrat_46.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_46.c</FilePath>
-            </File>
-            <File>
               <FileName>lv_font_montserrat_48.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_montserrat_48.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_simsun_14_cjk.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_simsun_14_cjk.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_simsun_16_cjk.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_simsun_16_cjk.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_unscii_8.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_unscii_8.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_unscii_16.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Libraries\OSS\lvgl\9.2.2\src\font\lv_font_unscii_16.c</FilePath>
             </File>
             <File>
               <FileName>lv_indev.c</FileName>

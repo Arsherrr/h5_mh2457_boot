@@ -1,0 +1,19 @@
+源文件: c:\Users\liao\Desktop\Workspace\新建文件夹\MH5\E\Boot\H5_BOOT\Applications\res\text.c
+字符串数量: 192
+去重字符数: 241
+
+按文字系统统计:
+  ASCII: 95
+  CJK(中日韩): 78
+  Cyrillic(俄语): 45
+  Latin扩展(西欧重音): 21
+  Latin-1: 2
+
+输出文件:
+  lvgl_symbols.txt  <- Online Font Converter 的 Symbols 框
+  lvgl_chars_lines.txt    <- 每行一字, 便于核对
+  lvgl_codepoints.txt <- 码点对照表
+  lvgl_ranges.txt     <- 合并区间 (可参考)
+
+lv_font_conv 示例:
+  npx lv_font_conv --font YourFont.ttf --size 42 --bpp 4 --format lvgl --symbols "$(cat lvgl_symbols.txt)" -o lv_font_puhui_42.c

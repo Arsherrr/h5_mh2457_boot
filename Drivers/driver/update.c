@@ -14,10 +14,12 @@ V1.0 (2025/05/09 16:00:00)
 #include "ui_ota.h"
 #include "memory.h"
 #include "text.h"
+#include "res.h"
+#include "aes_gcm.h"
 
 const char name[10] __attribute__((section(".ARM.__at_0x8002000"))) = "KWH5";
-const char ver[10] __attribute__((section(".ARM.__at_0x8002010"))) = "1.0";
-const char hw[10] __attribute__((section(".ARM.__at_0x8002020"))) = "1.0";
+const char ver[10] __attribute__((section(".ARM.__at_0x8002010"))) = "1.0.0";
+const char hw[10] __attribute__((section(".ARM.__at_0x8002020"))) = "1.0.0";
 
 extern int language;
 
@@ -29,22 +31,22 @@ void disp_dbg_code(s8 code)
 
     switch (code) {
     case 0:
-        ui_set_notice(get_string(language, TEXT_OTA_STANDBY), COLOR_WHITE);
+        ui_set_notice_id(TEXT_OTA_UPGRADING, COLOR_WHITE);
         break;
 
     case 1:
         /* 正在更新 LOGO. */
-        ui_set_notice(get_string(language, TEXT_OTA_UPGRADE_LOGO), COLOR_WHITE);
+        ui_set_notice_id(TEXT_OTA_UPGRADE_LOGO, COLOR_WHITE);
         break;
     
     case 2:
-        /* 正在更新文本. */
-        ui_set_notice(get_string(language, TEXT_OTA_UPGRADE_IMG), COLOR_WHITE);
+        /* 正在更新图片. */
+        ui_set_notice_id(TEXT_OTA_UPGRADE_IMG, COLOR_WHITE);
         break;
 
     case 3:
-        /* 正在更新图片. */
-        ui_set_notice(get_string(language, TEXT_OTA_UPGRADE_TEXT), COLOR_WHITE);
+        /* 正在更新文本. */
+        ui_set_notice_id(TEXT_OTA_UPGRADE_TEXT, COLOR_WHITE);
         break;
 
 #if 0
@@ -96,7 +98,7 @@ void disp_dbg_code2(u8 code)
 void disp_success(void)
 {
     ui_set_pct_visible(0);
-    ui_set_notice(get_string(language, TEXT_OTA_SUCCESS), COLOR_GREEN);
+    ui_set_notice_id(TEXT_OTA_SUCCESS, COLOR_GREEN);
 }
 
 void disp_verifying(void)
@@ -105,7 +107,7 @@ void disp_verifying(void)
     ui_set_notice("Verifying...", COLOR_WHITE);
 }
 
-void update_process_bar(u8 percent)
+void update_process_bar(u16 percent)
 {
     process_update(percent);
 }
@@ -166,6 +168,16 @@ static u32 addr_at425;
 static u32 size_at425;
 static u32 pack_cnt_at425;
 static u32 ticks_to;
+
+static u8 aes_gcm_enabled;
+static u32 aes_gcm_cipher_size;
+static u8 aes_gcm_tag[AES_GCM_TAG_SIZE];
+static const u8 aes_gcm_key[AES_GCM_KEY_SIZE] = AES_GCM_KEY;
+static const u8 aes_gcm_nonce[AES_GCM_NONCE_SIZE] = AES_GCM_NONCE;
+static aes_gcm_ctx_t aes_gcm_ctx;
+static u32 aes_gcm_decrypted_size;
+static u32 app_decrypted_size;
+static u32 flash_decrypted_size;
 
 typedef void (*P_FUN)(void);
 static P_FUN jump;
@@ -266,6 +278,159 @@ static u16 flash_verify(u32 addr, u32 len)
     return crc;
 }
 
+static u32 app_crc_info_calc_crc(app_crc_info_t *info)
+{
+    return crc32_hw((u8*)info, sizeof(app_crc_info_t) - sizeof(info->info_crc));
+}
+
+static void app_aes_gcm_start(u32 cipher_size)
+{
+    aes_gcm_cipher_size = cipher_size;
+    aes_gcm_decrypted_size = 0;
+    app_decrypted_size = 0;
+    flash_decrypted_size = 0;
+    memset((void*)aes_gcm_tag, 0, sizeof(aes_gcm_tag));
+    aes_gcm_init(&aes_gcm_ctx, aes_gcm_key, aes_gcm_nonce);
+    aes_gcm_enabled = 1;
+}
+
+static u32 get_effective_payload_len(u32 file_size, u32 packet_index, u32 packet_payload_size, u32 frame_payload_len)
+{
+    u32 sent_size = packet_index * packet_payload_size;
+    u32 remain_size;
+
+    if (sent_size >= file_size)
+    {
+        return 0;
+    }
+
+    remain_size = file_size - sent_size;
+    return (remain_size < frame_payload_len) ? remain_size : frame_payload_len;
+}
+
+static s8 app_aes_gcm_decrypt_payload(u8 *data, u32 data_len, u32 *plain_len)
+{
+    u32 decrypt_len;
+    u32 tag_len;
+
+    *plain_len = data_len;
+
+    if (!aes_gcm_enabled)
+    {
+        return 0;
+    }
+
+    if (aes_gcm_decrypted_size >= aes_gcm_cipher_size)
+    {
+        decrypt_len = 0;
+    }
+    else if ((aes_gcm_decrypted_size + data_len) > aes_gcm_cipher_size)
+    {
+        decrypt_len = aes_gcm_cipher_size - aes_gcm_decrypted_size;
+    }
+    else
+    {
+        decrypt_len = data_len;
+    }
+
+    if (decrypt_len)
+    {
+        aes_gcm_decrypt_update(&aes_gcm_ctx, data, decrypt_len);
+        aes_gcm_decrypted_size += decrypt_len;
+    }
+
+    tag_len = data_len - decrypt_len;
+    if (tag_len)
+    {
+        if (tag_len > AES_GCM_TAG_SIZE)
+        {
+            return -2;
+        }
+        memcpy((void*)aes_gcm_tag, (void*)&data[decrypt_len], tag_len);
+    }
+
+    *plain_len = decrypt_len;
+    return 0;
+}
+
+static s8 app_aes_gcm_finish(void)
+{
+    if (!aes_gcm_enabled)
+    {
+        return 0;
+    }
+
+    if (aes_gcm_decrypted_size != aes_gcm_cipher_size)
+    {
+        return -1;
+    }
+
+    return aes_gcm_decrypt_finish(&aes_gcm_ctx, aes_gcm_tag);
+}
+
+s8 app_crc_info_save(u32 app_size)
+{
+    app_crc_info_t info;
+
+    if ((app_size == 0) || (app_size > SIZE_MCU))
+    {
+        return -1;
+    }
+
+    info.magic = APP_CRC_INFO_MAGIC;
+    info.version = APP_CRC_INFO_VERSION;
+    info.app_addr = ADDR_APP;
+    info.app_size = app_size;
+    info.app_crc = crc32_flash_hw(ADDR_APP, app_size, buf_tt, sizeof(buf_tt));
+    crc32_hw_init();
+    info.info_crc = app_crc_info_calc_crc(&info);
+
+    FLASH_EraseSector(ADDR_APP_CRC_INFO);
+    CACHE_CleanAll(DCACHE);
+    FLASH_ProgramPage(NULL, NULL, ADDR_APP_CRC_INFO, sizeof(info), (u8*)&info);
+    CACHE_CleanAll(DCACHE);
+
+    if (memcmp((void*)ADDR_APP_CRC_INFO, (void*)&info, sizeof(info)) != 0)
+    {
+        return -2;
+    }
+
+    return 0;
+}
+
+s8 app_crc_info_check(void)
+{
+    return 0;
+    
+    app_crc_info_t info;
+    u32 crc;
+
+    memcpy((void*)&info, (void*)ADDR_APP_CRC_INFO, sizeof(info));
+
+    if ((info.magic != APP_CRC_INFO_MAGIC) ||
+        (info.version != APP_CRC_INFO_VERSION) ||
+        (info.app_addr != ADDR_APP) ||
+        (info.app_size == 0) ||
+        (info.app_size > SIZE_MCU))
+    {
+        return -1;
+    }
+
+    crc32_hw_init();
+    if (app_crc_info_calc_crc(&info) != info.info_crc)
+    {
+        return -2;
+    }
+
+    crc = crc32_flash_hw(ADDR_APP, info.app_size, buf_tt, sizeof(buf_tt));
+    if (crc != info.app_crc)
+    {
+        return -3;
+    }
+
+    return 0;
+}
+
 void update_init(void)
 {
     buf_r = &buf_tt[3];
@@ -279,6 +444,145 @@ static u16 at_data_len;         // 实际数据长度（可能小于 4096）
 static u16 at_pack_num;         // 当前处理的包序号
 
 static s8 res_type = -1;
+
+/* TEXT / IMAGE 先写数据、最后再写头，升级中断时 magic 无效，避免半包资源被当成可用. */
+#define RES_HDR_SLOT_IMG  0
+#define RES_HDR_SLOT_TXT  1
+#define RES_HDR_PAGE_SIZE QSPI_PAGE_SIZE
+
+typedef struct {
+    u8 pending;
+    u16 len;
+    u32 addr;
+    u8 buf[RES_HDR_PAGE_SIZE];
+} res_hdr_stash_t;
+
+static res_hdr_stash_t res_hdr_stash[2];
+
+static s8 res_hdr_slot_by_type(s8 type)
+{
+    if (type == 2) {
+        return RES_HDR_SLOT_IMG;
+    }
+    if (type == 3) {
+        return RES_HDR_SLOT_TXT;
+    }
+    return -1;
+}
+
+static s8 res_flash_program(u32 addr, const u8 *data, u32 len)
+{
+    u32 off = 0;
+
+    while (off < len) {
+        u32 chunk = RES_HDR_PAGE_SIZE - ((addr + off) % RES_HDR_PAGE_SIZE);
+
+        if (chunk > (len - off)) {
+            chunk = len - off;
+        }
+
+        FLASH_ProgramPage(NULL, NULL, addr + off, chunk, (u8 *)&data[off]);
+        CACHE_CleanAll(DCACHE);
+
+        if (memcmp((void *)(addr + off), (void *)&data[off], chunk) != 0) {
+            return -1;
+        }
+
+        off += chunk;
+    }
+
+    return 0;
+}
+
+static void res_hdr_stash_save(s8 type, u32 addr, const u8 *page, u16 len)
+{
+    s8 slot = res_hdr_slot_by_type(type);
+
+    if ((slot < 0) || (len == 0) || (len > sizeof(res_hdr_stash[0].buf))) {
+        return;
+    }
+
+    res_hdr_stash[slot].pending = 1;
+    res_hdr_stash[slot].len = len;
+    res_hdr_stash[slot].addr = addr;
+    memcpy(res_hdr_stash[slot].buf, page, len);
+}
+
+static s8 res_hdr_prepare(u32 addr, u8 *data, u32 data_len)
+{
+    s8 type;
+    u32 expect_magic;
+
+    if (addr == RES_TEXT_BASE) {
+        type = 3;
+        expect_magic = TEXT_HDR_MAGIC;
+    } else if (addr == RES_IMG_BASE) {
+        type = 2;
+        expect_magic = RES_MAGIC;
+    } else {
+        return 0;
+    }
+
+    if (*((u32 *)data) != expect_magic) {
+        return -2;
+    }
+
+    if (data_len <= RES_HDR_PAGE_SIZE) {
+        return -2;
+    }
+
+    /* 整页暂存，首 256B（含 magic）等整包完成后再写. */
+    res_hdr_stash_save(type, addr, data, RES_HDR_PAGE_SIZE);
+
+    if (res_type != type) {
+        res_type = type;
+        disp_dbg_code(res_type);
+    }
+
+    return 1;
+}
+
+static s8 res_hdr_write_body(u32 addr, u8 *data, u32 data_len)
+{
+    /* 先擦掉含 magic 的首扇区，首页保持 0xFF，只写 256 之后的数据. */
+    FLASH_EraseSector(addr);
+    CACHE_CleanAll(DCACHE);
+
+    if (*((volatile u32 *)addr) != 0xFFFFFFFF) {
+        return -1;
+    }
+
+    if (res_flash_program(addr + RES_HDR_PAGE_SIZE,
+                          &data[RES_HDR_PAGE_SIZE],
+                          data_len - RES_HDR_PAGE_SIZE) != 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+static s8 res_hdr_commit_all(void)
+{
+    const u8 order[2] = { RES_HDR_SLOT_TXT, RES_HDR_SLOT_IMG };
+    u8 i, slot;
+
+    for (i = 0; i < 2; i++) {
+        slot = order[i];
+        if (!res_hdr_stash[slot].pending) {
+            continue;
+        }
+
+        if (res_flash_program(res_hdr_stash[slot].addr,
+                              res_hdr_stash[slot].buf,
+                              res_hdr_stash[slot].len) != 0) {
+            return -13;
+        }
+
+        res_hdr_stash[slot].pending = 0;
+    }
+
+    return 0;
+}
 
 /**
   ******************************************************************************
@@ -430,10 +734,47 @@ void update_handle(void)
          * SN: 包号
          */
         ret8 = 0;
+
+        if (pack_num_cur > (pack_num_last + 1)) //包不连续
+        {
+            ret8 = -1;
+            disp_dbg_code(ret8);
+            goto ACK_LOOP_FLASH;
+        }
+
+        /* 重发包必须在 AES-GCM 之前丢弃，否则会把校验流算乱，最后一包报 E11. */
+        if (pack_num_cur <= pack_num_last)
+        {
+            step = 0;
+            goto ACK_LOOP_FLASH;
+        }
+
         if (pack_num_cur == 0) {
+            u32 payload_len = get_effective_payload_len(file_size_flash, pack_num_cur, PACK_SIZE_FLASH, cnt_r - 13);
+            if (file_size_flash <= AES_GCM_TAG_SIZE)
+            {
+                ret8 = -11;
+                disp_dbg_code(ret8);
+                goto ACK_LOOP_FLASH;
+            }
+            app_aes_gcm_start(file_size_flash - AES_GCM_TAG_SIZE);
+            if (app_aes_gcm_decrypt_payload(&buf_r[9], payload_len, &payload_len) != 0)
+            {
+                ret8 = -11;
+                disp_dbg_code(ret8);
+                goto ACK_LOOP_FLASH;
+            }
+            if (payload_len == 0)
+            {
+                step = 10;
+                pack_num_last = pack_num_cur;
+                goto ACK_LOOP_FLASH;
+            }
+            pack_size = payload_len;
+
             /**
              * LOGO 头: b'LOGO' (0X4F474F4C)
-             * TEXT 头: LANG_NUM[1] + FF[19]
+             * TEXT 头: b'TEXT' (0x54584554)
              * IMG  头: b'JRES' (0x5345524A)
              */
             uint32_t magic = *((uint32_t*)&buf_r[9]);
@@ -460,6 +801,15 @@ void update_handle(void)
                 disp_dbg_code(res_type);
             }
         } else {
+            u32 payload_len = get_effective_payload_len(file_size_flash, pack_num_cur, PACK_SIZE_FLASH, cnt_r - 13);
+            if (app_aes_gcm_decrypt_payload(&buf_r[9], payload_len, &payload_len) != 0)
+            {
+                ret8 = -11;
+                disp_dbg_code(ret8);
+                goto ACK_LOOP_FLASH;
+            }
+            pack_size = payload_len;
+
             uint32_t magic = *((uint32_t*)&buf_r[9]);
             s8 _type = -1;
             if (magic == 0X4F474F4C) {
@@ -479,24 +829,11 @@ void update_handle(void)
             }
         }
 
-        if (pack_num_cur > (pack_num_last + 1)) //包不连续
-        {
-            ret = -1;
-            disp_dbg_code(-1);
-            goto ACK_LOOP_FLASH;
-        }
-
-        if (pack_num_cur <= pack_num_last) //发送之前的包直接返回成功，否则会重复计算CRC
-        {
-            step = 0;
-            goto ACK_LOOP_FLASH;
-        }
-
         if ((upd_type == UPD_LOGO) ||
             (upd_type == UPD_LOGO_EXT_FLASH) || 
             (upd_type == UPD_EXT_FLASH))
         {
-            addr = base_addr + pack_num_cur * pack_size;
+            addr = base_addr + flash_decrypted_size;
         }
         else
         {
@@ -505,12 +842,30 @@ void update_handle(void)
             goto ACK_LOOP_FLASH;
         }
 
-        if ((pack_num_cur + 1) == total_packs) //最后一包
+        if (pack_size == 0)
         {
-            if (file_size_flash % pack_size)
-            {
-                pack_size = file_size_flash % pack_size;
+            step = 10;
+            pack_num_last = pack_num_cur;
+            goto ACK_LOOP_FLASH;
+        }
+
+        ret = res_hdr_prepare(addr, &buf_r[9], pack_size);
+        if (ret < 0) {
+            ret8 = (s8)ret;
+            disp_dbg_code(ret8);
+            goto ACK_LOOP_FLASH;
+        }
+
+        if (ret > 0) {
+            if (res_hdr_write_body(addr, &buf_r[9], pack_size) != 0) {
+                step = 0;
+                ret8 = 1;
+            } else {
+                step = 10;
+                flash_decrypted_size += pack_size;
+                pack_num_last = pack_num_cur;
             }
+            goto ACK_LOOP_FLASH;
         }
 
 	    if (memcmp((void*)addr, (void*)&buf_r[9], pack_size))
@@ -532,12 +887,14 @@ void update_handle(void)
             else
             {
                 step = 10;
+                flash_decrypted_size += pack_size;
                 pack_num_last = pack_num_cur;
             }
 	    }
         else
         {
             step = 10;
+            flash_decrypted_size += pack_size;
             pack_num_last = pack_num_cur;
         }
 ACK_LOOP_FLASH:
@@ -545,6 +902,10 @@ ACK_LOOP_FLASH:
         memcpy(&buf_t[1], (u8*)&pack_num_cur, 2);
         len = pack_buf_s(CMD_SEND_DATA, buf_t, 3);
         VCPSendBytes(buf_s, len);
+        /* 失败/重发应答后必须回到接收态，否则会卡在 case 5 无法收下一包 */
+        if (step == 5) {
+            step = 0;
+        }
         break;
 
     case 6: //
@@ -566,8 +927,45 @@ ACK_LOOP_FLASH:
          * SN: 包号
          */
         ret8 = 0;
+
+        if (pack_num_cur > (pack_num_last + 1))
+        {
+            ret8 = -4;
+            disp_dbg_code(ret8);
+            goto ACK_LOOP_APP;
+        }
+
+        if (pack_num_cur <= pack_num_last)
+        {
+            step = 0;
+            goto ACK_LOOP_APP;
+        }
+
         if (pack_num_cur == 0)
         {
+            u32 payload_len = get_effective_payload_len(file_size_app, pack_num_cur, PACK_SIZE_MCU, cnt_r - 13);
+            if (file_size_app <= AES_GCM_TAG_SIZE)
+            {
+                ret8 = -11;
+                disp_dbg_code(ret8);
+                goto ACK_LOOP_APP;
+            }
+            app_aes_gcm_start(file_size_app - AES_GCM_TAG_SIZE);
+            if (app_aes_gcm_decrypt_payload(&buf_r[9], payload_len, &payload_len) != 0)
+            {
+                ret8 = -11;
+                disp_dbg_code(ret8);
+                goto ACK_LOOP_APP;
+            }
+            if (payload_len == 0 || payload_len > PACK_SIZE_MCU)
+            {
+                ret8 = -11;
+                disp_dbg_code(ret8);
+                goto ACK_LOOP_APP;
+            }
+
+            pack_size = payload_len;
+
             /* 包头信息. */
             u32 magic = 0;
             u8 i, xor = 0;
@@ -588,6 +986,8 @@ ACK_LOOP_FLASH:
                 buf_t[0] = 1; /* 1: Internal Flash, 2: External Flash (not Logo), 3: Logo / Logo + External Flash. */
                 memcpy((void*)&buf_t[1], (void*)&size_at425, 4);
                 len = pack_buf_at425(AT_CMD_SEND_FILE_SIZE, buf_t, 5);
+
+                /* @@[2] + LEN[2] + 0xF003[2] + TYPE[1] + FILE_SIZE[4] + CRC[2] + \r\n[2] */
                 uart_send(buf_s, len);
                 step = 101;
                 ticks_to = ticks_sys;
@@ -600,19 +1000,6 @@ ACK_LOOP_FLASH:
             }
         }
 
-        if (pack_num_cur > (pack_num_last + 1))
-        {
-            ret8 = -4;
-            disp_dbg_code(ret8);
-            goto ACK_LOOP_APP;
-        }
-
-        if (pack_num_cur <= pack_num_last) //发送之前的包直接返回成功，否则会重复计算CRC
-        {
-            step = 0;
-            goto ACK_LOOP_APP;
-        }
-
         if (pack_cnt_at425 && (pack_num_cur <= pack_cnt_at425))
         {
             /* 转换 ID 后转发给 AT32. */
@@ -620,22 +1007,71 @@ ACK_LOOP_FLASH:
             len = cnt_r - 10; /* @@ + 2len + 2cmd + 2crc + \r\n */
             if (len == 0 || len > (pack_size + 3)) printf("[UPDATE] [ERROR] Invalid data len (%d)\n", len);
 
+            if (aes_gcm_enabled)
+            {
+                u32 decrypt_len = get_effective_payload_len(file_size_app, pack_num_cur, PACK_SIZE_MCU, len - 3);
+                if (app_aes_gcm_decrypt_payload(&buf_r[9], decrypt_len, &decrypt_len) != 0)
+                {
+                    ret8 = -11;
+                    disp_dbg_code(ret8);
+                    goto ACK_LOOP_APP;
+                }
+
+                if (decrypt_len == 0)
+                {
+                    step = 10;
+                    pack_num_last = pack_num_cur;
+                    goto ACK_LOOP_APP;
+                }
+
+                len = decrypt_len + 3;
+            }
+
             len = pack_buf_at425(AT_CMD_SEND_DATA, (u8 *)&buf_r[6], len);
             uart_send(buf_s, len);
         }
         else
         {
             if (pack_cnt_at425)
-                addr = ADDR_APP + (pack_num_cur-pack_cnt_at425-1) * pack_size;
+                addr = ADDR_APP + app_decrypted_size;
             else
-                addr = ADDR_APP + pack_num_cur * pack_size;
+                addr = ADDR_APP + app_decrypted_size;
 
-            if ((pack_num_cur + 1) == total_packs) //最后一包
+            if (aes_gcm_enabled)
+            {
+                u32 decrypt_len = get_effective_payload_len(file_size_app, pack_num_cur, PACK_SIZE_MCU, cnt_r - 13);
+                if (app_aes_gcm_decrypt_payload(&buf_r[9], decrypt_len, &decrypt_len) != 0)
+                {
+                    ret8 = -11;
+                    disp_dbg_code(ret8);
+                    goto ACK_LOOP_APP;
+                }
+                if (decrypt_len == 0)
+                {
+                    step = 10;
+                    pack_num_last = pack_num_cur;
+                    goto ACK_LOOP_APP;
+                }
+                pack_size = decrypt_len;
+            }
+            
+            if ((pack_num_cur + 1) == total_packs) {
+                printf("hello");
+            }
+
+            if (!aes_gcm_enabled && ((pack_num_cur + 1) == total_packs)) //最后一包
             {
                 if (file_size_app % pack_size)
                 {
                     pack_size = file_size_app % pack_size;
                 }
+            }
+
+            if (pack_size == 0)
+            {
+                step = 10;
+                pack_num_last = pack_num_cur;
+                goto ACK_LOOP_APP;
             }
 
             if (memcmp((void*)addr, (void*)&buf_r[9], pack_size))
@@ -657,12 +1093,14 @@ ACK_LOOP_FLASH:
                 else
                 {
                     step = 10;
+                    app_decrypted_size += pack_size;
                     pack_num_last = pack_num_cur;
                 }
             }
             else
             {
                 step = 10;
+                app_decrypted_size += pack_size;
                 pack_num_last = pack_num_cur;
             }
         }
@@ -671,6 +1109,10 @@ ACK_LOOP_APP:
         memcpy(&buf_t[1], (u8*)&pack_num_cur, 2);
         len = pack_buf_s(CMD_SEND_DATA, buf_t, 3);
         VCPSendBytes(buf_s, len);
+        /* 失败/重发应答后回到接收态，避免卡在 case 6 */
+        if (step == 6) {
+            step = 0;
+        }
         break;
 
     case 7: //设置设备ID
@@ -804,7 +1246,6 @@ ACK_LOOP_APP:
             if (file_size_app > SIZE_MCU)
             {
                 ret8 = -6;
-                disp_dbg_code(ret8);
             }
         }
         else if (buf_r[6] == 2) //flash(logo not include)
@@ -817,7 +1258,6 @@ ACK_LOOP_APP:
             if (file_size_flash > SIZE_FLASH)
             {
                 ret8 = -7;
-                disp_dbg_code(ret8);
             }
         }
         else if (buf_r[6] == 3) //logo or logo+flash
@@ -830,7 +1270,6 @@ ACK_LOOP_APP:
                 if (file_size_flash > (SIZE_FLASH + SIZE_LOGO))
                 {
                     ret8 = -8;
-                    disp_dbg_code(ret8);
                 }
             }
             else
@@ -845,13 +1284,17 @@ ACK_LOOP_APP:
         {
             /* 无效文件类型. */
             ret8 = -9;
-            disp_dbg_code(ret8);
         }
 
-        /* 重置进度为 0. */
-        update_process_bar(0);
-        disp_dbg_code(0);
-        
+        if (ret8) {
+            /* 显示错误信息. */
+            disp_dbg_code(ret8);
+        } else {
+            /* 重置进度为 0. */
+            update_process_bar(0);
+            disp_dbg_code(0);
+        }
+
         /* 响应. */
         buf_t[0] = ret8;
         // memcpy((void*)buf_t, (u8*)&pack_num_cur, 1);
@@ -861,7 +1304,7 @@ ACK_LOOP_APP:
 
     case 10: //显示进度条
         step = 0;
-        update_process_bar((pack_num_cur+1)*100 / total_packs);
+        update_process_bar((pack_num_cur + 1) * 10000 / total_packs);
         if ((pack_num_cur + 1) == total_packs)
         {
             if (cnt_file)
@@ -871,6 +1314,32 @@ ACK_LOOP_APP:
             if (!cnt_file)
             {
                 upd_anyway = 0;
+                if ((upd_type == UPD_APP) ||
+                    (upd_type == UPD_EXT_FLASH) ||
+                    (upd_type == UPD_LOGO) ||
+                    (upd_type == UPD_LOGO_EXT_FLASH))
+                {
+                    if (app_aes_gcm_finish() != 0)
+                    {
+                        disp_dbg_code(-12);
+                        break;
+                    }
+                }
+
+                if (res_hdr_commit_all() != 0)
+                {
+                    disp_dbg_code(-13);
+                    break;
+                }
+
+                if (upd_type == UPD_APP)
+                {
+                    if (app_crc_info_save(app_decrypted_size) != 0)
+                    {
+                        disp_dbg_code(-10);
+                        break;
+                    }
+                }
                 disp_success();
 //                lv_refr_now(NULL);
                 beep_on();
@@ -878,6 +1347,11 @@ ACK_LOOP_APP:
                 beep_off();
                 //delay_ms(3000);
                 //to_app();
+            }
+            else if (res_hdr_commit_all() != 0)
+            {
+                disp_dbg_code(-13);
+                break;
             }
         }
         break;
@@ -1038,6 +1512,7 @@ ACK_LOOP_APP:
 
     case 106:
         step = 101;
+        ret8 = 0;
         cmd_req = (buf_r[4] << 8) + buf_r[5];
         cmd_req -= CMD_OFFSET_FROM_AT425;
         if (cmd_req == AT_CMD_SEND_DATA) //下发升级数据包
@@ -1051,6 +1526,7 @@ ACK_LOOP_APP:
             {
                 step = 0;
                 buf_t[0] = 1;
+                ret8 = -104;
             }
 
             pack_num_last = pack_num_cur;

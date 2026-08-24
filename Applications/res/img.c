@@ -5,21 +5,13 @@
 
 extern const lv_image_dsc_t update_progress_bg_dark;
 extern const lv_image_dsc_t update_progress_fg_dark;
-extern const lv_image_dsc_t upgrade;
-extern const lv_image_dsc_t logs;
-extern const lv_image_dsc_t reset;
 extern const lv_image_dsc_t back;
 extern const lv_image_dsc_t menu_bg;
 
 lv_draw_buf_t update_progress_bg_buf;
 lv_draw_buf_t update_progress_fg_buf;
 
-
-lv_draw_buf_t menu_upgrade;
-lv_draw_buf_t menu_logs;
-lv_draw_buf_t menu_reset;
 lv_draw_buf_t menu_back;
-
 lv_draw_buf_t menu_bg_buf;
 
 #define RAW_DATA_SIZE  ( 854 * 480 * 3 )
@@ -120,11 +112,8 @@ int img_init(void)
     png_init((lv_image_dsc_t *)&update_progress_bg_dark, &update_progress_bg_buf);
     png_init((lv_image_dsc_t *)&update_progress_fg_dark, &update_progress_fg_buf);
 
-    /* 菜单图标. */
-    png_init((lv_image_dsc_t *)&upgrade, &menu_upgrade);
-    png_init((lv_image_dsc_t *)&logs,    &menu_logs);
-    png_init((lv_image_dsc_t *)&reset,   &menu_reset);
-    png_init((lv_image_dsc_t *)&back,   &menu_back);
+    /* 菜单返回图标 */
+    png_init((lv_image_dsc_t *)&back, &menu_back);
 
     return 0;
 }
