@@ -5,3 +5,4 @@ MDK/Objects
 *.uvoptx
 JLinkLog.txt
 JLinkSettings.ini
+.venv
